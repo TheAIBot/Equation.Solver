@@ -12,6 +12,7 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
     private readonly int _outputCount;
     private readonly Random _random = new Random();
     private readonly ScoredProblemEquation[] _equations;
+    private readonly EquationValues _equationValues;
     private long _iterationCount = 0;
     private int _bestScore = int.MaxValue;
     [AllowNull]
@@ -30,10 +31,11 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
 
         _random = new Random();
         _equations = new ScoredProblemEquation[_candidateCount];
+        _equationValues = new EquationValues(parameterCount, _operatorCount);
         for (int i = 0; i < _equations.Length; i++)
         {
-            _equations[i] = new ScoredProblemEquation(int.MaxValue, new ProblemEquation(parameterCount, _operatorCount, outputCount));
-            RandomSolver.Randomize(_random, _equations[i].Equation);
+            _equations[i] = new ScoredProblemEquation(int.MaxValue, new ProblemEquation(_operatorCount, outputCount));
+            RandomSolver.Randomize(_random, _equations[i].Equation, _equationValues);
         }
     }
 
@@ -57,8 +59,8 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
             ref ScoredProblemEquation firstEquation = ref _equations[firstCompetitorIndex];
             ref ScoredProblemEquation secondEquation = ref _equations[secondCompetitorIndex];
 
-            int firstCompetitorsScore = problem.EvaluateEquation(firstEquation.Equation);
-            int secondCompetitorsScore = problem.EvaluateEquation(secondEquation.Equation);
+            int firstCompetitorsScore = problem.EvaluateEquation(firstEquation.Equation, _equationValues);
+            int secondCompetitorsScore = problem.EvaluateEquation(secondEquation.Equation, _equationValues);
 
             firstEquation.Score = firstCompetitorsScore;
             secondEquation.Score = secondCompetitorsScore;
@@ -90,7 +92,7 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
         int operatorCountToRandomize = (int)(_operatorCount * _candidateRandomizationRate);
         for (int i = 0; i < _equations.Length; i++)
         {
-            RandomizeSmallPartOfEquation(_random, _equations[i].Equation, operatorCountToRandomize);
+            RandomizeSmallPartOfEquation(_random, _equations[i].Equation, _equationValues, operatorCountToRandomize);
         }
 
         int bestEquationInsertIndex = _random.Next(0, _equations.Length);
@@ -109,10 +111,10 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
         return new RandomChunkEvolver(_operatorCount, _candidateCount, _candidateCompetitionRate, _candidateRandomizationRate, _parameterCount, _outputCount);
     }
 
-    private static void RandomizeSmallPartOfEquation(Random random, ProblemEquation equation, int operatorCountToRandomize)
+    private static void RandomizeSmallPartOfEquation(Random random, ProblemEquation equation, EquationValues equationValues, int operatorCountToRandomize)
     {
         Span<NandOperator> operators = equation.NandOperators;
-        int staticResultSize = equation.StaticResultSize;
+        int staticResultSize = equationValues.StaticResultSize;
         for (int i = 0; i < operatorCountToRandomize; i++)
         {
             int operatorIndex = random.Next(0, operators.Length);

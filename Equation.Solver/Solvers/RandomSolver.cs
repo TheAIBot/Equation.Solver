@@ -31,16 +31,17 @@ internal sealed class RandomSolver : ISolver
         try
         {
             var random = new Random();
-            var equation = new ProblemEquation(problem.ParameterCount, _operatorCount, problem.OutputCount);
+            var equation = new ProblemEquation(_operatorCount, problem.OutputCount);
+            var equationValues = new EquationValues(problem.ParameterCount, _operatorCount);
 
             _iterationCount = 0;
             _bestScore = int.MaxValue;
             while (_bestScore != 0 && !cancellationToken.IsCancellationRequested)
             {
                 _iterationCount++;
-                Randomize(random, equation);
+                Randomize(random, equation, equationValues);
 
-                int score = problem.EvaluateEquation(equation);
+                int score = problem.EvaluateEquation(equation, equationValues);
                 if (score < _bestScore)
                 {
                     _bestScore = score;
@@ -61,10 +62,10 @@ internal sealed class RandomSolver : ISolver
         return new RandomSolver(_operatorCount);
     }
 
-    internal static void Randomize(Random random, ProblemEquation equation)
+    internal static void Randomize(Random random, ProblemEquation equation, EquationValues equationValues)
     {
         Span<NandOperator> operators = equation.NandOperators;
-        int staticResultSize = equation.StaticResultSize;
+        int staticResultSize = equationValues.StaticResultSize;
         for (int i = 0; i < operators.Length; i++)
         {
             int leftValueIndex = random.Next(0, staticResultSize + i);

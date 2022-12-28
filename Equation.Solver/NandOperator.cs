@@ -11,10 +11,10 @@ internal readonly struct NandOperator
         _rightValueIndex = rightValueIndex;
     }
 
-    public int Calculate(ProblemEquation equation)
+    public int Calculate(int[] values)
     {
-        int leftValue = equation.GetResult(_leftValueIndex);
-        int rightValue = equation.GetResult(_rightValueIndex);
+        int leftValue = values[_leftValueIndex];
+        int rightValue = values[_rightValueIndex];
 
         return ~(leftValue & rightValue);
     }

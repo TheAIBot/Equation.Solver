@@ -11,13 +11,14 @@ internal sealed class EquationProblem
         _examples = examples;
     }
 
-    public int EvaluateEquation(ProblemEquation equation)
+    public int EvaluateEquation(ProblemEquation equation, EquationValues equationValues)
     {
         int score = 0;
         for (int i = 0; i < _examples.Length; i++)
         {
             ProblemExample example = _examples[i];
-            ReadOnlySpan<int> equationResult = equation.Calculate(example.Input.Inputs);
+            equationValues.SetParameters(example.Input);
+            ReadOnlySpan<int> equationResult = equation.Calculate(equationValues);
             score += example.Output.CalculateDifference(equationResult, example.ExampleCount);
         }
 

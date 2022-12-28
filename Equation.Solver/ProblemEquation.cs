@@ -2,45 +2,24 @@
 
 internal sealed class ProblemEquation
 {
-    private readonly int[] _allValues;
-    private readonly Memory<int> _constants;
-    private readonly Memory<int> _parameters;
-    private readonly Memory<int> _operatorResults;
+
     private readonly NandOperator[] _nandOperators;
     private readonly int _outputSize;
     public Span<NandOperator> NandOperators => _nandOperators;
-    public int StaticResultSize => _constants.Length + _parameters.Length;
 
-    public ProblemEquation(int parameterCount, int operatorCount, int outputSize)
+    public ProblemEquation(int operatorCount, int outputSize)
     {
-        const int constantsCount = 2;
-        _allValues = new int[constantsCount + parameterCount + operatorCount];
-        _constants = _allValues.AsMemory(0, constantsCount);
-        _constants.Span[0] = 0;
-        _constants.Span[1] = -1;
-        _parameters = _allValues.AsMemory(constantsCount, parameterCount);
-        _operatorResults = _allValues.AsMemory(constantsCount + parameterCount, operatorCount);
         _nandOperators = new NandOperator[operatorCount];
         _outputSize = outputSize;
     }
 
-    public int GetResult(int index)
+    public ReadOnlySpan<int> Calculate(EquationValues equationValues)
     {
-        return _allValues[index];
-    }
-
-    public ReadOnlySpan<int> Calculate(ReadOnlySpan<int> parameters)
-    {
-        if (parameters.Length != _parameters.Length)
-        {
-            throw new ArgumentOutOfRangeException(nameof(parameters));
-        }
-        parameters.CopyTo(_parameters.Span);
-
-        Span<int> results = _operatorResults.Span;
+        Span<int> results = equationValues.OperatorResults.Span;
+        int[] allValues = equationValues.AllValues;
         for (int i = 0; i < _nandOperators.Length; i++)
         {
-            results[i] = _nandOperators[i].Calculate(this);
+            results[i] = _nandOperators[i].Calculate(allValues);
         }
 
         return results.Slice(results.Length - _outputSize, _outputSize);
@@ -48,7 +27,7 @@ internal sealed class ProblemEquation
 
     public ProblemEquation Copy()
     {
-        var copy = new ProblemEquation(_parameters.Length, _nandOperators.Length, _outputSize);
+        var copy = new ProblemEquation(_nandOperators.Length, _outputSize);
         copy.CopyFrom(this);
 
         return copy;

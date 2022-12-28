@@ -42,10 +42,11 @@ internal sealed class RandomEvolutionSolver : ISolver
         {
             var random = new Random();
             var equations = new ProblemEquation[_candidateCount];
+            var equationValues = new EquationValues(problem.ParameterCount, _operatorCount);
             for (int i = 0; i < equations.Length; i++)
             {
-                equations[i] = new ProblemEquation(problem.ParameterCount, _operatorCount, problem.OutputCount);
-                RandomSolver.Randomize(random, equations[i]);
+                equations[i] = new ProblemEquation(_operatorCount, problem.OutputCount);
+                RandomSolver.Randomize(random, equations[i], equationValues);
             }
 
             _iterationCount = 0;
@@ -61,8 +62,8 @@ internal sealed class RandomEvolutionSolver : ISolver
                     ProblemEquation firstEquation = equations[firstCompetitorIndex];
                     ProblemEquation secondEquation = equations[secondCompetitorIndex];
 
-                    int firstCompetitorsScore = problem.EvaluateEquation(firstEquation);
-                    int secondCompetitorsScore = problem.EvaluateEquation(secondEquation);
+                    int firstCompetitorsScore = problem.EvaluateEquation(firstEquation, equationValues);
+                    int secondCompetitorsScore = problem.EvaluateEquation(secondEquation, equationValues);
                     if (firstCompetitorsScore == secondCompetitorsScore)
                     {
                         continue;
@@ -90,7 +91,7 @@ internal sealed class RandomEvolutionSolver : ISolver
                 int operatorCountToRandomize = (int)(_operatorCount * _candidateRandomizationRate);
                 for (int i = 0; i < equations.Length; i++)
                 {
-                    RandomizeSmallPartOfEquation(random, equations[i], operatorCountToRandomize);
+                    RandomizeSmallPartOfEquation(random, equations[i], equationValues, operatorCountToRandomize);
                 }
             }
 
@@ -107,10 +108,10 @@ internal sealed class RandomEvolutionSolver : ISolver
         return new RandomEvolutionSolver(_operatorCount, _candidateCount, _candidateCompetitionRate, _candidateRandomizationRate);
     }
 
-    private static void RandomizeSmallPartOfEquation(Random random, ProblemEquation equation, int operatorCountToRandomize)
+    private static void RandomizeSmallPartOfEquation(Random random, ProblemEquation equation, EquationValues equationValues, int operatorCountToRandomize)
     {
         Span<NandOperator> operators = equation.NandOperators;
-        int staticResultSize = equation.StaticResultSize;
+        int staticResultSize = equationValues.StaticResultSize;
         for (int i = 0; i < operatorCountToRandomize; i++)
         {
             int operatorIndex = random.Next(0, operators.Length);
