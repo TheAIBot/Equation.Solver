@@ -9,31 +9,30 @@ internal class Program
         ProblemExample[] examples = CreateBiArgOperatorExamples(200, 8, (x, y) => x + y).ToArray();
 
         var problem = new EquationProblem(examples);
-        //ISolver solver = new RandomSolver(20);
-        ISolver solver = new RandomEvolutionSolver(100, 100_000, 0.1f, 0.025f);
+        //ISolver solver = new ParallelSolver(new RandomSolver(20));
+        //ISolver solver = new ParallelSolver(new RandomEvolutionSolver(100, 100_000, 0.1f, 0.025f));
+        ISolver solver = new RandomChunkEvolutionSolver(100, new RandomChunkEvolver(100, 10_000, 0.1f, 0.02f, problem.ParameterCount, problem.OutputCount));
 
 
-        await RunAsParallelSolver(solver, problem);
+        await RunSolver(solver, problem);
     }
 
-    private static async Task RunAsParallelSolver(ISolver solver, EquationProblem problem)
+    private static async Task RunSolver(ISolver solver, EquationProblem problem)
     {
-        var parallelSolver = new ParallelSolver(solver);
-
         CancellationTokenSource cancellation = new CancellationTokenSource();
-        Task solverTask = Task.Run(() => parallelSolver.SolveAsync(problem, cancellation.Token));
+        Task solverTask = Task.Run(() => solver.SolveAsync(problem, cancellation.Token));
 
         PeriodicTimer timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         while (await timer.WaitForNextTickAsync(cancellation.Token))
         {
-            SolverReport? report = parallelSolver.GetReport();
+            SolverReport? report = solver.GetReport();
             if (report == null)
             {
                 Console.WriteLine("No reports available");
                 continue;
             }
 
-            SolverReport[] reports = parallelSolver.GetAllReports();
+            SolverReport[] reports = solver is IMultipleReporting multiReporting ? multiReporting.GetAllReports() : new SolverReport[] { report };
 
             Console.WriteLine($"{report.IterationCount:N0}, {string.Join(", ", reports.Select(x => x.BestScore.ToString().PadLeft(5)))}");
             if (report.BestScore == 0)

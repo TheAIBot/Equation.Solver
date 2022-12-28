@@ -41,7 +41,7 @@ internal sealed class RandomEvolutionSolver : ISolver
         try
         {
             var random = new Random();
-            ProblemEquation[] equations = new ProblemEquation[_candidateCount];
+            var equations = new ProblemEquation[_candidateCount];
             for (int i = 0; i < equations.Length; i++)
             {
                 equations[i] = new ProblemEquation(problem.ParameterCount, _operatorCount, problem.OutputCount);
@@ -106,8 +106,6 @@ internal sealed class RandomEvolutionSolver : ISolver
     {
         return new RandomEvolutionSolver(_operatorCount, _candidateCount, _candidateCompetitionRate, _candidateRandomizationRate);
     }
-
-
 
     private static void RandomizeSmallPartOfEquation(Random random, ProblemEquation equation, int operatorCountToRandomize)
     {

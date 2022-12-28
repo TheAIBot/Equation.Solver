@@ -35,6 +35,7 @@ internal sealed class ParallelSolver : ISolver
                        .OfType<SolverReport>()
                        .ToArray();
     }
+
     public Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
     {
         return Task.WhenAll(_solvers.Select(x => Task.Run(() => x.SolveAsync(problem, cancellationToken))));
