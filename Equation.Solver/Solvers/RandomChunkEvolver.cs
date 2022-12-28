@@ -16,7 +16,7 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
     private int _bestScore = int.MaxValue;
     [AllowNull]
     private ProblemEquation _bestEquation;
-    public Span<ScoredProblemEquation> Equations => _equations;
+    public ScoredProblemEquation[] Equations => _equations;
     public int BestScore => _bestScore;
 
     public RandomChunkEvolver(int operatorCount, int candidateCount, float candidateCompetitionRate, float candidateRandomizationRate, int parameterCount, int outputCount)

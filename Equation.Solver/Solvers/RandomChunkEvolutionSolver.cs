@@ -1,4 +1,6 @@
-﻿namespace Equation.Solver.Solvers;
+﻿using System.Threading.Tasks.Dataflow;
+
+namespace Equation.Solver.Solvers;
 
 internal sealed class RandomChunkEvolutionSolver : ISolver, IMultipleReporting
 {
@@ -31,21 +33,41 @@ internal sealed class RandomChunkEvolutionSolver : ISolver, IMultipleReporting
                       .ToArray();
     }
 
-    public Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
+    public async Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
     {
         Random random = new Random();
-        ParallelOptions parallelOptions = new ParallelOptions()
+        var parallelBlock = new TransformBlock<IChunkEvolver, IChunkEvolver>(x =>
+        {
+            x.EvolveChunk(problem);
+            return x;
+        }, new ExecutionDataflowBlockOptions()
         {
             CancellationToken = cancellationToken,
-            MaxDegreeOfParallelism = Environment.ProcessorCount - 1
-        };
+            MaxDegreeOfParallelism = Environment.ProcessorCount - 1,
+            SingleProducerConstrained = true
+        });
+
+        foreach (var chunk in _chunks)
+        {
+            await AddToBlock(parallelBlock, chunk, cancellationToken);
+        }
 
         while (_chunks.Min(x => x.BestScore) > 0)
         {
-            Parallel.ForEach(_chunks, parallelOptions, x => x.EvolveChunk(problem));
+            int firstChunkCounter = random.Next(0, _chunks.Length);
+            int secondChunkCounter = random.Next(0, _chunks.Length);
 
-            Span<ScoredProblemEquation> firstChunkEquations = _chunks[random.Next(0, _chunks.Length)].Equations;
-            Span<ScoredProblemEquation> secondChunkEquations = _chunks[random.Next(0, _chunks.Length)].Equations;
+            while (firstChunkCounter < 0)
+            {
+                var chunk = await parallelBlock.ReceiveAsync(cancellationToken);
+                await AddToBlock(parallelBlock, chunk, cancellationToken);
+            }
+
+            IChunkEvolver firstChunk = await GetRandomChunk(parallelBlock, random, cancellationToken);
+            IChunkEvolver secondChunk = await GetRandomChunk(parallelBlock, random, cancellationToken);
+
+            ScoredProblemEquation[] firstChunkEquations = firstChunk.Equations;
+            ScoredProblemEquation[] secondChunkEquations = secondChunk.Equations;
 
             for (int i = 0; i < firstChunkEquations.Length; i++)
             {
@@ -56,9 +78,35 @@ internal sealed class RandomChunkEvolutionSolver : ISolver, IMultipleReporting
                     secondChunkEquations[i] = temp;
                 }
             }
+
+            await AddToBlock(parallelBlock, firstChunk, cancellationToken);
+            await AddToBlock(parallelBlock, secondChunk, cancellationToken);
         }
 
-        return Task.CompletedTask;
+        parallelBlock.Complete();
+        await parallelBlock.Completion;
+    }
+
+    private async Task<IChunkEvolver> GetRandomChunk(TransformBlock<IChunkEvolver, IChunkEvolver> block, Random random, CancellationToken cancellationToken)
+    {
+        int chunkCounter = random.Next(0, _chunks.Length);
+        while (chunkCounter < 0)
+        {
+            var chunk = await block.ReceiveAsync(cancellationToken);
+            await AddToBlock(block, chunk, cancellationToken);
+            chunkCounter--;
+        }
+
+        return await block.ReceiveAsync(cancellationToken);
+    }
+
+    private static async Task AddToBlock(TransformBlock<IChunkEvolver, IChunkEvolver> block, IChunkEvolver chunk, CancellationToken cancellationToken)
+    {
+        if (!await block.SendAsync(chunk, cancellationToken))
+        {
+            block.Complete();
+            await block.Completion;
+        }
     }
 
     public ISolver Copy()

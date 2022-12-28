@@ -2,7 +2,7 @@
 
 internal interface IChunkEvolver : IReporting
 {
-    Span<ScoredProblemEquation> Equations { get; }
+    ScoredProblemEquation[] Equations { get; }
     int BestScore { get; }
 
     void EvolveChunk(EquationProblem problem);
@@ -10,16 +10,4 @@ internal interface IChunkEvolver : IReporting
     void UpdateBestEquation();
 
     IChunkEvolver Copy();
-}
-
-internal struct ScoredProblemEquation
-{
-    public int Score;
-    public ProblemEquation Equation;
-
-    public ScoredProblemEquation(int score, ProblemEquation equation)
-    {
-        Score = score;
-        Equation = equation;
-    }
 }
