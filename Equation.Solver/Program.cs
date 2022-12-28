@@ -2,7 +2,7 @@
 
 namespace Equation.Solver;
 
-internal class Program
+internal sealed class Program
 {
     static async Task Main(string[] args)
     {
@@ -19,7 +19,9 @@ internal class Program
 
     private static async Task RunSolver(ISolver solver, EquationProblem problem)
     {
-        CancellationTokenSource cancellation = new CancellationTokenSource();
+        var averageIterationsPerSecond = new SampleAverage(10);
+        long prevIterationCount = 0;
+        var cancellation = new CancellationTokenSource();
         Task solverTask = Task.Run(() => solver.SolveAsync(problem, cancellation.Token));
 
         PeriodicTimer timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
@@ -32,9 +34,13 @@ internal class Program
                 continue;
             }
 
+            long iterationsSinceLastReport = report.IterationCount - prevIterationCount;
+            prevIterationCount = report.IterationCount;
+            averageIterationsPerSecond.AddSample(iterationsSinceLastReport);
+
             SolverReport[] reports = solver is IMultipleReporting multiReporting ? multiReporting.GetAllReports() : new SolverReport[] { report };
 
-            Console.WriteLine($"{report.IterationCount:N0}, {string.Join(", ", reports.Select(x => x.BestScore.ToString().PadLeft(5)))}");
+            Console.WriteLine($"{report.IterationCount:N0}, {averageIterationsPerSecond.GetAverage():N0}, {string.Join(", ", reports.Select(x => x.BestScore.ToString().PadLeft(5)))}");
             if (report.BestScore == 0)
             {
                 cancellation.Cancel();
