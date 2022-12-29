@@ -89,7 +89,7 @@ internal sealed class Program
                                                 inputs32x8[i, 7]);
             }
 
-            int[,] outputs32x8 = new int[valueChunk[0].outputs.Length, valueChunk.Length];
+            int[,] outputs32x8 = new int[valueChunk[0].outputs.Length, intsPerVector256];
             for (int i = 0; i < valueChunk[0].outputs.Length; i++)
             {
                 for (int x = 0; x < valueChunk.Length; x++)
