@@ -1,4 +1,6 @@
-﻿namespace Equation.Solver;
+﻿using System.Runtime.Intrinsics;
+
+namespace Equation.Solver;
 
 internal sealed class ProblemEquation
 {
@@ -13,10 +15,10 @@ internal sealed class ProblemEquation
         _outputSize = outputSize;
     }
 
-    public ReadOnlySpan<int> Calculate(EquationValues equationValues)
+    public ReadOnlySpan<Vector256<int>> Calculate(EquationValues equationValues)
     {
-        Span<int> results = equationValues.OperatorResults.Span;
-        int[] allValues = equationValues.AllValues;
+        Span<Vector256<int>> results = equationValues.OperatorResults.Span;
+        Vector256<int>[] allValues = equationValues.AllValues;
         for (int i = 0; i < _nandOperators.Length; i++)
         {
             results[i] = _nandOperators[i].Calculate(allValues);

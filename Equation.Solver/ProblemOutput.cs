@@ -1,41 +1,29 @@
 ﻿using System.Numerics;
+using System.Runtime.Intrinsics;
 
 namespace Equation.Solver;
 
-internal readonly record struct ProblemOutput(int[] Outputs)
+internal readonly record struct ProblemOutput(Vector256<int>[] Outputs)
 {
-    public int CalculateDifference(ReadOnlySpan<int> compareTo, int exampleCount)
+    public int CalculateDifference(ReadOnlySpan<Vector256<int>> compareTo)
     {
         if (compareTo.Length != Outputs.Length)
         {
             throw new ArgumentException($"Must be the same length as {Outputs}", nameof(compareTo));
         }
 
-        int examplesMask = GetExamplesUsedMask(exampleCount);
         int difference = 0;
         for (int i = 0; i < Outputs.Length; i++)
         {
-            int expected = Outputs[i] & examplesMask;
-            int actual = compareTo[i] & examplesMask;
-            difference += BitOperations.PopCount((uint)(expected ^ actual));
+            Vector256<int> expected = Outputs[i];
+            Vector256<int> actual = compareTo[i];
+            Vector256<ulong> diff = (expected ^ actual).AsUInt64();
+            difference += BitOperations.PopCount(diff.GetElement(0)) +
+                          BitOperations.PopCount(diff.GetElement(1)) +
+                          BitOperations.PopCount(diff.GetElement(2)) +
+                          BitOperations.PopCount(diff.GetElement(3));
         }
 
         return difference;
-    }
-
-    private static int GetExamplesUsedMask(int exampleCount)
-    {
-        const int intBitCount = 32;
-        if (exampleCount > intBitCount || exampleCount < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(exampleCount));
-        }
-
-        if (exampleCount == intBitCount)
-        {
-            return -1;
-        }
-
-        return (1 << exampleCount) - 1;
     }
 }

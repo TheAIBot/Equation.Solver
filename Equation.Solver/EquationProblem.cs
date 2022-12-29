@@ -1,4 +1,6 @@
-﻿namespace Equation.Solver;
+﻿using System.Runtime.Intrinsics;
+
+namespace Equation.Solver;
 
 internal sealed class EquationProblem
 {
@@ -18,8 +20,8 @@ internal sealed class EquationProblem
         {
             ProblemExample example = _examples[i];
             equationValues.SetParameters(example.Input);
-            ReadOnlySpan<int> equationResult = equation.Calculate(equationValues);
-            score += example.Output.CalculateDifference(equationResult, example.ExampleCount);
+            ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues);
+            score += example.Output.CalculateDifference(equationResult);
         }
 
         return score;

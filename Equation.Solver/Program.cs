@@ -1,4 +1,5 @@
 ﻿using Equation.Solver.Solvers;
+using System.Runtime.Intrinsics;
 
 namespace Equation.Solver;
 
@@ -51,6 +52,71 @@ internal sealed class Program
 
     private static IEnumerable<ProblemExample> CreateBiArgOperatorExamples(int exampleCount, int bitCount, Func<int, int, int> function)
     {
+        var values = CreateBiArgOperatorExamplesAsVector256(exampleCount, bitCount, function);
+        foreach (var inputOutputs in values)
+        {
+            yield return new ProblemExample(new ProblemInput(inputOutputs.inputs), new ProblemOutput(inputOutputs.outputs));
+        }
+    }
+
+    private static IEnumerable<(Vector256<int>[] inputs, Vector256<int>[] outputs)> CreateBiArgOperatorExamplesAsVector256(int exampleCount, int bitCount, Func<int, int, int> function)
+    {
+        var values = CreateBiArgOperatorExamplesAsInts(exampleCount, bitCount, function);
+        const int vector256BitCount = 256;
+        const int intBitCount = 32;
+        const int intsPerVector256 = vector256BitCount / intBitCount;
+        foreach ((int[] inputs, int[] outputs)[] valueChunk in values.Chunk(intsPerVector256))
+        {
+            int[,] inputs32x8 = new int[valueChunk[0].inputs.Length, intsPerVector256];
+            for (int i = 0; i < valueChunk[0].inputs.Length; i++)
+            {
+                for (int x = 0; x < valueChunk.Length; x++)
+                {
+                    inputs32x8[i, x] = valueChunk[x].inputs[i];
+                }
+            }
+
+            Vector256<int>[] inputs256 = new Vector256<int>[valueChunk[0].inputs.Length];
+            for (int i = 0; i < valueChunk[0].inputs.Length; i++)
+            {
+                inputs256[i] = Vector256.Create(inputs32x8[i, 0],
+                                                inputs32x8[i, 1],
+                                                inputs32x8[i, 2],
+                                                inputs32x8[i, 3],
+                                                inputs32x8[i, 4],
+                                                inputs32x8[i, 5],
+                                                inputs32x8[i, 6],
+                                                inputs32x8[i, 7]);
+            }
+
+            int[,] outputs32x8 = new int[valueChunk[0].outputs.Length, valueChunk.Length];
+            for (int i = 0; i < valueChunk[0].outputs.Length; i++)
+            {
+                for (int x = 0; x < valueChunk.Length; x++)
+                {
+                    outputs32x8[i, x] = valueChunk[x].outputs[i];
+                }
+            }
+
+            Vector256<int>[] outputs256 = new Vector256<int>[valueChunk[0].outputs.Length];
+            for (int i = 0; i < valueChunk[0].outputs.Length; i++)
+            {
+                outputs256[i] = Vector256.Create(outputs32x8[i, 0],
+                                                 outputs32x8[i, 1],
+                                                 outputs32x8[i, 2],
+                                                 outputs32x8[i, 3],
+                                                 outputs32x8[i, 4],
+                                                 outputs32x8[i, 5],
+                                                 outputs32x8[i, 6],
+                                                 outputs32x8[i, 7]);
+            }
+
+            yield return (inputs256, outputs256);
+        }
+    }
+
+    private static IEnumerable<(int[] inputs, int[] outputs)> CreateBiArgOperatorExamplesAsInts(int exampleCount, int bitCount, Func<int, int, int> function)
+    {
         const int intBitCount = 32;
         int[] inputs = new int[bitCount * 2];
         Span<int> leftInput = inputs.AsSpan(0, bitCount);
@@ -77,7 +143,7 @@ internal sealed class Program
             exampleCounter++;
             if (exampleCounter % intBitCount == 0)
             {
-                yield return new ProblemExample(new ProblemInput(inputs), new ProblemOutput(outputs), intBitCount);
+                yield return (inputs, outputs);
                 inputs = new int[bitCount * 2];
                 leftInput = inputs.AsSpan(0, bitCount);
                 rightInput = inputs.AsSpan(bitCount, bitCount);
@@ -98,7 +164,7 @@ internal sealed class Program
 
         if (exampleCounter % intBitCount != 0)
         {
-            yield return new ProblemExample(new ProblemInput(inputs), new ProblemOutput(outputs), exampleCounter % intBitCount);
+            yield return (inputs, outputs);
         }
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace Equation.Solver;
+﻿using System.Runtime.Intrinsics;
+
+namespace Equation.Solver;
 
 internal readonly struct NandOperator
 {
@@ -11,10 +13,10 @@ internal readonly struct NandOperator
         _rightValueIndex = rightValueIndex;
     }
 
-    public int Calculate(int[] values)
+    public Vector256<int> Calculate(Vector256<int>[] values)
     {
-        int leftValue = values[_leftValueIndex];
-        int rightValue = values[_rightValueIndex];
+        Vector256<int> leftValue = values[_leftValueIndex];
+        Vector256<int> rightValue = values[_rightValueIndex];
 
         return ~(leftValue & rightValue);
     }

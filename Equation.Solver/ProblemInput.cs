@@ -1,3 +1,5 @@
-﻿namespace Equation.Solver;
+﻿using System.Runtime.Intrinsics;
 
-internal readonly record struct ProblemInput(int[] Inputs);
+namespace Equation.Solver;
+
+internal readonly record struct ProblemInput(Vector256<int>[] Inputs);
