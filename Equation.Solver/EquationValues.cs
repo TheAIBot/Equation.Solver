@@ -17,7 +17,9 @@ internal unsafe sealed class EquationValues
     {
         _size = constantsCount + parameterCount + operatorCount;
         _parameterCount = parameterCount;
-        AllValues = (Vector256<int>*)NativeMemory.AlignedAlloc((nuint)(sizeof(Vector256<int>) * _size), 64);
+        // For vectorized code, aligned load/stores can be important in order to achieve optimal performance.
+        // That's why we align this array by the vectors size so only aligned loads/stores are done.
+        AllValues = (Vector256<int>*)NativeMemory.AlignedAlloc((nuint)(sizeof(Vector256<int>) * _size), (nuint)sizeof(Vector256<int>));
         AllValues[0] = Vector256<int>.Zero;
         AllValues[1] = Vector256<int>.AllBitsSet;
         OperatorResults = AllValues + constantsCount + parameterCount;
