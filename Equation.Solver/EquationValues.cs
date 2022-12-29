@@ -1,33 +1,35 @@
-﻿using System.Runtime.Intrinsics;
+﻿using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 
 namespace Equation.Solver;
 
-internal sealed class EquationValues
+internal unsafe sealed class EquationValues
 {
-    public Vector256<int>[] AllValues;
-    private readonly Memory<Vector256<int>> _constants;
-    private readonly Memory<Vector256<int>> _parameters;
-    public Memory<Vector256<int>> OperatorResults;
+    const int constantsCount = 2;
+    public readonly Vector256<int>* AllValues;
+    public readonly int _size;
+    public readonly Vector256<int>* OperatorResults;
+    private readonly int _parameterCount;
 
-    public int StaticResultSize => _constants.Length + _parameters.Length;
+    public int StaticResultSize => constantsCount + _parameterCount;
 
     public EquationValues(int parameterCount, int operatorCount)
     {
-        const int constantsCount = 2;
-        AllValues = new Vector256<int>[constantsCount + parameterCount + operatorCount];
-        _constants = AllValues.AsMemory(0, constantsCount);
-        _constants.Span[0] = Vector256<int>.Zero;
-        _constants.Span[1] = Vector256<int>.AllBitsSet;
-        _parameters = AllValues.AsMemory(constantsCount, parameterCount);
-        OperatorResults = AllValues.AsMemory(constantsCount + parameterCount, operatorCount);
+        _size = constantsCount + parameterCount + operatorCount;
+        _parameterCount = parameterCount;
+        AllValues = (Vector256<int>*)NativeMemory.AlignedAlloc((nuint)(sizeof(Vector256<int>) * _size), 64);
+        AllValues[0] = Vector256<int>.Zero;
+        AllValues[1] = Vector256<int>.AllBitsSet;
+        OperatorResults = AllValues + constantsCount + parameterCount;
     }
 
     public void SetParameters(ProblemInput parameters)
     {
-        if (parameters.Inputs.Length != _parameters.Length)
+        if (parameters.Inputs.Length != _parameterCount)
         {
             throw new ArgumentOutOfRangeException(nameof(parameters));
         }
-        parameters.Inputs.CopyTo(_parameters.Span);
+        var to = new Span<Vector256<int>>(AllValues + constantsCount, _parameterCount);
+        parameters.Inputs.CopyTo(to);
     }
 }

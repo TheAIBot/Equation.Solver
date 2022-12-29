@@ -7,7 +7,7 @@ internal sealed class Program
 {
     static async Task Main(string[] args)
     {
-        ProblemExample[] examples = CreateBiArgOperatorExamples(1000, 16, (x, y) => x + y).ToArray();
+        ProblemExample[] examples = CreateBiArgOperatorExamples(10_000, 16, (x, y) => x + y).ToArray();
 
         var problem = new EquationProblem(examples);
         //ISolver solver = new ParallelSolver(new RandomSolver(20));
