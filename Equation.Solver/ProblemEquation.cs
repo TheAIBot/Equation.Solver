@@ -28,7 +28,7 @@ internal sealed class ProblemEquation
         Vector256<int>* allValues = equationValues.AllValues;
         fixed (NandOperator* operators = _nandOperators)
         {
-            int* indexes = (int*)operators;
+            int* indexes = ConvertNandArrayToIntArray(operators);
             for (int i = 0; i < _nandOperators.Length; i += 4)
             {
                 var op1Left = Avx.LoadAlignedVector256((int*)(allValues + (*(indexes + 0))));
@@ -53,6 +53,19 @@ internal sealed class ProblemEquation
         }
 
         return new Span<Vector256<int>>(allValues + (equationValues._size - _outputSize), _outputSize);
+    }
+
+    private static unsafe int* ConvertNandArrayToIntArray(NandOperator* nandArray)
+    {
+        // The algorithm works on the assumptions that NandOperator
+        // consists of two ints. Verify this is true by checking the
+        // size of a NandOperator is the same size as two ints.
+        if (sizeof(NandOperator) != sizeof(int) * 2)
+        {
+            throw new InvalidOperationException("");
+        }
+
+        return (int*)nandArray;
     }
 
     public ProblemEquation Copy()
