@@ -6,17 +6,18 @@ namespace Equation.Solver;
 
 internal sealed class ProblemEquation
 {
-
+    private const int _unrollFactor = 4;
     private readonly NandOperator[] _nandOperators;
     private readonly int _outputSize;
     public Span<NandOperator> NandOperators => _nandOperators;
 
     public ProblemEquation(int operatorCount, int outputSize)
     {
-        if (operatorCount % 4 != 0)
+        if (operatorCount % _unrollFactor != 0)
         {
-            throw new ArgumentException("Must be divisible by 4.", nameof(operatorCount));
+            throw new ArgumentException($"Must be divisible by {_unrollFactor}.", nameof(operatorCount));
         }
+
         _nandOperators = new NandOperator[operatorCount];
         _outputSize = outputSize;
     }
@@ -33,7 +34,7 @@ internal sealed class ProblemEquation
             fixed (NandOperator* operators = _nandOperators)
             {
                 int* indexes = ConvertNandArrayToIntArray(operators);
-                for (int i = 0; i < _nandOperators.Length; i += 4)
+                for (int i = 0; i < _nandOperators.Length; i += _unrollFactor)
                 {
                     var op1Left = Avx.LoadAlignedVector256((int*)(allValues + (*(indexes + 0))));
                     var op1Right = Avx.LoadAlignedVector256((int*)(allValues + (*(indexes + 1))));
@@ -51,8 +52,8 @@ internal sealed class ProblemEquation
                     Avx.StoreAligned((int*)(results + 1), result2);
                     Avx.StoreAligned((int*)(results + 2), result3);
                     Avx.StoreAligned((int*)(results + 3), result4);
-                    indexes += 8;
-                    results += 4;
+                    indexes += _unrollFactor * 2;
+                    results += _unrollFactor;
                 }
             }
         }
