@@ -11,8 +11,11 @@ internal readonly struct NandOperator
 
     public NandOperator(int leftValueIndex, int rightValueIndex)
     {
-        _leftValueIndex = leftValueIndex;
-        _rightValueIndex = rightValueIndex;
+        // Pre-multiplied by 8 since these are not an index into
+        // a Vector256<int>[] but an int[]  where 8 elements
+        // together are an Vector256<int>.
+        _leftValueIndex = leftValueIndex * Vector256<int>.Count;
+        _rightValueIndex = rightValueIndex * Vector256<int>.Count;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

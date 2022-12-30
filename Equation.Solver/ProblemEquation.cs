@@ -23,23 +23,23 @@ internal sealed class ProblemEquation
     public unsafe ReadOnlySpan<Vector256<int>> Calculate(EquationValues equationValues)
     {
         Vector256<int>* results = equationValues.OperatorResults;
-        Vector256<int>* allValues = equationValues.AllValues;
+        int* allValues = (int*)equationValues.AllValues;
 
         // 4x loop unrolled, no bounds checks,
         // version of the code found in the else case
         fixed (NandOperator* operators = _nandOperators)
         {
-            int* indexes = ConvertNandArrayToIntArray(operators);
+            uint* indexes = ConvertNandArrayToIntArray(operators);
             for (int i = 0; i < _nandOperators.Length; i += _unrollFactor)
             {
-                var op1Left = Vector256.LoadAligned((int*)(allValues + (*(indexes + 0))));
-                var op1Right = Vector256.LoadAligned((int*)(allValues + (*(indexes + 1))));
-                var op2Left = Vector256.LoadAligned((int*)(allValues + (*(indexes + 2))));
-                var op2Right = Vector256.LoadAligned((int*)(allValues + (*(indexes + 3))));
-                var op3Left = Vector256.LoadAligned((int*)(allValues + (*(indexes + 4))));
-                var op3Right = Vector256.LoadAligned((int*)(allValues + (*(indexes + 5))));
-                var op4Left = Vector256.LoadAligned((int*)(allValues + (*(indexes + 6))));
-                var op4Right = Vector256.LoadAligned((int*)(allValues + (*(indexes + 7))));
+                var op1Left = Vector256.LoadAligned(allValues + (*(indexes + 0)));
+                var op1Right = Vector256.LoadAligned(allValues + (*(indexes + 1)));
+                var op2Left = Vector256.LoadAligned(allValues + (*(indexes + 2)));
+                var op2Right = Vector256.LoadAligned(allValues + (*(indexes + 3)));
+                var op3Left = Vector256.LoadAligned(allValues + (*(indexes + 4)));
+                var op3Right = Vector256.LoadAligned(allValues + (*(indexes + 5)));
+                var op4Left = Vector256.LoadAligned(allValues + (*(indexes + 6)));
+                var op4Right = Vector256.LoadAligned(allValues + (*(indexes + 7)));
                 var result1 = NandOperator.Nand(op1Left, op1Right);
                 var result2 = NandOperator.Nand(op2Left, op2Right);
                 var result3 = NandOperator.Nand(op3Left, op3Right);
@@ -53,10 +53,10 @@ internal sealed class ProblemEquation
             }
         }
 
-        return new Span<Vector256<int>>(allValues + (equationValues._size - _outputSize), _outputSize);
+        return new Span<Vector256<int>>(((Vector256<int>*)allValues) + (equationValues._size - _outputSize), _outputSize);
     }
 
-    private static unsafe int* ConvertNandArrayToIntArray(NandOperator* nandArray)
+    private static unsafe uint* ConvertNandArrayToIntArray(NandOperator* nandArray)
     {
         // The algorithm works on the assumptions that NandOperator
         // consists of two ints. Verify this is true by checking the
@@ -66,7 +66,7 @@ internal sealed class ProblemEquation
             throw new InvalidOperationException("");
         }
 
-        return (int*)nandArray;
+        return (uint*)nandArray;
     }
 
     public ProblemEquation Copy()
