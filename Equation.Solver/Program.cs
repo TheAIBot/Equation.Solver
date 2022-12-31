@@ -1,5 +1,4 @@
 ﻿using Equation.Solver.Solvers;
-using System.Runtime.Intrinsics;
 
 namespace Equation.Solver;
 
@@ -7,7 +6,7 @@ internal sealed class Program
 {
     static async Task Main(string[] args)
     {
-        ProblemExample[] examples = CreateBiArgOperatorExamples(10_000, 16, (x, y) => x + y).ToArray();
+        ProblemExample[] examples = ProblemExample.ConvertToExamples(CreateBiArgOperatorExamplesAsInts(10_000, 16, (x, y) => x + y)).ToArray();
 
         var problem = new EquationProblem(examples);
         //ISolver solver = new ParallelSolver(new RandomSolver(20));
@@ -50,120 +49,29 @@ internal sealed class Program
         }
     }
 
-    private static IEnumerable<ProblemExample> CreateBiArgOperatorExamples(int exampleCount, int bitCount, Func<int, int, int> function)
+    private static IEnumerable<(bool[] inputs, bool[] outputs)> CreateBiArgOperatorExamplesAsInts(int exampleCount, int bitCount, Func<int, int, int> function)
     {
-        var values = CreateBiArgOperatorExamplesAsVector256(exampleCount, bitCount, function);
-        foreach (var inputOutputs in values)
+        for (int exampleCounter = 0; exampleCounter < exampleCount; exampleCounter++)
         {
-            yield return new ProblemExample(new ProblemInput(inputOutputs.inputs), new ProblemOutput(inputOutputs.outputs));
-        }
-    }
+            bool[] inputs = new bool[bitCount * 2];
+            Span<bool> leftInput = inputs.AsSpan(0, bitCount);
+            Span<bool> rightInput = inputs.AsSpan(bitCount, bitCount);
+            bool[] outputs = new bool[bitCount];
 
-    private static IEnumerable<(Vector256<int>[] inputs, Vector256<int>[] outputs)> CreateBiArgOperatorExamplesAsVector256(int exampleCount, int bitCount, Func<int, int, int> function)
-    {
-        var values = CreateBiArgOperatorExamplesAsInts(exampleCount, bitCount, function);
-        const int vector256BitCount = 256;
-        const int intBitCount = 32;
-        const int intsPerVector256 = vector256BitCount / intBitCount;
-        foreach ((int[] inputs, int[] outputs)[] valueChunk in values.Chunk(intsPerVector256))
-        {
-            int[,] inputs32x8 = new int[valueChunk[0].inputs.Length, intsPerVector256];
-            for (int i = 0; i < valueChunk[0].inputs.Length; i++)
-            {
-                for (int x = 0; x < valueChunk.Length; x++)
-                {
-                    inputs32x8[i, x] = valueChunk[x].inputs[i];
-                }
-            }
-
-            Vector256<int>[] inputs256 = new Vector256<int>[valueChunk[0].inputs.Length];
-            for (int i = 0; i < valueChunk[0].inputs.Length; i++)
-            {
-                inputs256[i] = Vector256.Create(inputs32x8[i, 0],
-                                                inputs32x8[i, 1],
-                                                inputs32x8[i, 2],
-                                                inputs32x8[i, 3],
-                                                inputs32x8[i, 4],
-                                                inputs32x8[i, 5],
-                                                inputs32x8[i, 6],
-                                                inputs32x8[i, 7]);
-            }
-
-            int[,] outputs32x8 = new int[valueChunk[0].outputs.Length, intsPerVector256];
-            for (int i = 0; i < valueChunk[0].outputs.Length; i++)
-            {
-                for (int x = 0; x < valueChunk.Length; x++)
-                {
-                    outputs32x8[i, x] = valueChunk[x].outputs[i];
-                }
-            }
-
-            Vector256<int>[] outputs256 = new Vector256<int>[valueChunk[0].outputs.Length];
-            for (int i = 0; i < valueChunk[0].outputs.Length; i++)
-            {
-                outputs256[i] = Vector256.Create(outputs32x8[i, 0],
-                                                 outputs32x8[i, 1],
-                                                 outputs32x8[i, 2],
-                                                 outputs32x8[i, 3],
-                                                 outputs32x8[i, 4],
-                                                 outputs32x8[i, 5],
-                                                 outputs32x8[i, 6],
-                                                 outputs32x8[i, 7]);
-            }
-
-            yield return (inputs256, outputs256);
-        }
-    }
-
-    private static IEnumerable<(int[] inputs, int[] outputs)> CreateBiArgOperatorExamplesAsInts(int exampleCount, int bitCount, Func<int, int, int> function)
-    {
-        const int intBitCount = 32;
-        int[] inputs = new int[bitCount * 2];
-        Span<int> leftInput = inputs.AsSpan(0, bitCount);
-        Span<int> rightInput = inputs.AsSpan(bitCount, bitCount);
-        int[] outputs = new int[bitCount];
-
-        int exampleCounter = 0;
-        while (exampleCounter < exampleCount)
-        {
             int leftValue = exampleCounter;
             int rightValue = exampleCounter + 1;
             int outputValue = function(leftValue, rightValue);
 
-            for (int i = 0; i < bitCount; i++)
+            for (int bitIndex = 0; bitIndex < bitCount; bitIndex++)
             {
-                int leftBit = (leftValue >> i) & 1;
-                int rightBit = (rightValue >> i) & 1;
-                int outputBit = (outputValue >> i) & 1;
-                leftInput[i] |= leftBit;
-                rightInput[i] |= rightBit;
-                outputs[i] |= outputBit;
+                int leftBit = (leftValue >> bitIndex) & 1;
+                int rightBit = (rightValue >> bitIndex) & 1;
+                int outputBit = (outputValue >> bitIndex) & 1;
+                leftInput[bitIndex] = leftBit == 1;
+                rightInput[bitIndex] = rightBit == 1;
+                outputs[bitIndex] = outputBit == 1;
             }
 
-            exampleCounter++;
-            if (exampleCounter % intBitCount == 0)
-            {
-                yield return (inputs, outputs);
-                inputs = new int[bitCount * 2];
-                leftInput = inputs.AsSpan(0, bitCount);
-                rightInput = inputs.AsSpan(bitCount, bitCount);
-                outputs = new int[bitCount];
-            }
-            else if (exampleCounter < exampleCount)
-            {
-                for (int i = 0; i < inputs.Length; i++)
-                {
-                    inputs[i] <<= 1;
-                }
-                for (int i = 0; i < outputs.Length; i++)
-                {
-                    outputs[i] <<= 1;
-                }
-            }
-        }
-
-        if (exampleCounter % intBitCount != 0)
-        {
             yield return (inputs, outputs);
         }
     }
