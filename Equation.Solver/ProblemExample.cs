@@ -23,8 +23,15 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
 
     private static IEnumerable<Vector256<int>[]> ConvertToExampleVectors(IEnumerable<int[]> examplesAsInts)
     {
+        int? bitLength = null;
         foreach (int[][] exampleChunk in examplesAsInts.Chunk(Vector256<int>.Count))
         {
+            if (!bitLength.HasValue)
+            {
+                bitLength = exampleChunk[0].Length;
+            }
+            AssertAllArraysAreSameLength(exampleChunk, bitLength.Value);
+
             var exampleVectors = new List<Vector256<int>>();
             for (int i = 0; i < exampleChunk[0].Length; i++)
             {
@@ -43,9 +50,17 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
 
     private static IEnumerable<int[]> ConvertToExampleInts(IEnumerable<bool[]> examples)
     {
+        int? bitLength = null;
         const int intBitCount = 32;
         foreach (bool[][] boolExamples in examples.Chunk(intBitCount))
         {
+            if (!bitLength.HasValue)
+            {
+                bitLength = boolExamples[0].Length;
+            }
+            AssertAllArraysAreSameLength(boolExamples, bitLength.Value);
+
+
             int[] exampleInts = new int[boolExamples[0].Length];
             for (int i = 0; i < boolExamples.Length; i++)
             {
@@ -56,6 +71,17 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
             }
 
             yield return exampleInts;
+        }
+    }
+
+    private static void AssertAllArraysAreSameLength<T>(T[][] arrays, int expectedLength)
+    {
+        for (int i = 0; i < arrays.Length; i++)
+        {
+            if (arrays[i].Length != expectedLength)
+            {
+                throw new InvalidOperationException("Not all arrays has the same length.");
+            }
         }
     }
 }
