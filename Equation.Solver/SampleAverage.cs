@@ -13,7 +13,7 @@ internal sealed class SampleAverage
     public void AddSample(float sample)
     {
         _samples.Enqueue(sample);
-        if (_samples.Count == _sampleCount)
+        if (_samples.Count == _sampleCount + 1)
         {
             _samples.Dequeue();
         }
