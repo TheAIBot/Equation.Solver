@@ -54,15 +54,6 @@ internal sealed class RandomChunkEvolutionSolver : ISolver, IMultipleReporting
 
         while (_chunks.Min(x => x.BestScore) > 0)
         {
-            int firstChunkCounter = random.Next(0, _chunks.Length);
-            int secondChunkCounter = random.Next(0, _chunks.Length);
-
-            while (firstChunkCounter < 0)
-            {
-                var chunk = await parallelBlock.ReceiveAsync(cancellationToken);
-                await AddToBlock(parallelBlock, chunk, cancellationToken);
-            }
-
             IChunkEvolver firstChunk = await GetRandomChunk(parallelBlock, random, cancellationToken);
             IChunkEvolver secondChunk = await GetRandomChunk(parallelBlock, random, cancellationToken);
 
@@ -78,6 +69,9 @@ internal sealed class RandomChunkEvolutionSolver : ISolver, IMultipleReporting
                     secondChunkEquations[i] = temp;
                 }
             }
+
+            firstChunk.UpdateBestEquation();
+            secondChunk.UpdateBestEquation();
 
             await AddToBlock(parallelBlock, firstChunk, cancellationToken);
             await AddToBlock(parallelBlock, secondChunk, cancellationToken);
