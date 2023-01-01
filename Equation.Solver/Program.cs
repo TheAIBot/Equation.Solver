@@ -38,9 +38,19 @@ internal sealed class Program
             prevIterationCount = report.IterationCount;
             averageIterationsPerSecond.AddSample(iterationsSinceLastReport);
 
-            SolverReport[] reports = solver is IMultipleReporting multiReporting ? multiReporting.GetAllReports() : new SolverReport[] { report };
+            Console.WriteLine();
+            Console.WriteLine($"Iterations: {report.IterationCount:N0}");
+            Console.WriteLine($"Iterations/s: {averageIterationsPerSecond.GetAverage():N0}");
+            Console.WriteLine($"Best score: {report.BestScore:N0}");
+            if (solver is IMultipleReporting multiReporting)
+            {
+                SolverReport[] reports = multiReporting.GetAllReports();
+                string[] scores = reports.Select(x => x.BestScore.ToString("N0")).ToArray();
+                int maxLengthScore = scores.Max(x => x.Length);
 
-            Console.WriteLine($"{report.IterationCount:N0}, {averageIterationsPerSecond.GetAverage():N0}, {string.Join(", ", reports.Select(x => x.BestScore.ToString().PadLeft(5)))}");
+                Console.WriteLine($"All Reported scores: {string.Join(", ", scores.Select(x => x.PadLeft(maxLengthScore)))}");
+            }
+
             if (report.BestScore == 0)
             {
                 cancellation.Cancel();
