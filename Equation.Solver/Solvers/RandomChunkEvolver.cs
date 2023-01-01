@@ -21,6 +21,11 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
     public int BestScore => _bestScore;
 
     public RandomChunkEvolver(int operatorCount, int candidateCount, float candidateCompetitionRate, float candidateRandomizationRate, int parameterCount, int outputCount)
+        : this(operatorCount, candidateCount, candidateCompetitionRate, candidateRandomizationRate, parameterCount, outputCount, new Random())
+    {
+    }
+
+    private RandomChunkEvolver(int operatorCount, int candidateCount, float candidateCompetitionRate, float candidateRandomizationRate, int parameterCount, int outputCount, Random random)
     {
         _operatorCount = operatorCount;
         _candidateCount = candidateCount;
@@ -29,7 +34,7 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
         _parameterCount = parameterCount;
         _outputCount = outputCount;
 
-        _random = new Random();
+        _random = random;
         _equations = new ScoredProblemEquation[_candidateCount];
         _equationValues = new EquationValues(parameterCount, _operatorCount);
         for (int i = 0; i < _equations.Length; i++)
@@ -106,9 +111,9 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
         _bestEquation = bestEquation.Equation;
     }
 
-    public IChunkEvolver Copy()
+    public IChunkEvolver Copy(int randomSeed)
     {
-        return new RandomChunkEvolver(_operatorCount, _candidateCount, _candidateCompetitionRate, _candidateRandomizationRate, _parameterCount, _outputCount);
+        return new RandomChunkEvolver(_operatorCount, _candidateCount, _candidateCompetitionRate, _candidateRandomizationRate, _parameterCount, _outputCount, new Random(randomSeed));
     }
 
     private static void RandomizeSmallPartOfEquation(Random random, ProblemEquation equation, EquationValues equationValues, int operatorCountToRandomize)

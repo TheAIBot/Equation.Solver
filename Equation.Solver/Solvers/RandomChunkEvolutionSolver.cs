@@ -5,12 +5,14 @@ namespace Equation.Solver.Solvers;
 internal sealed class RandomChunkEvolutionSolver : ISolver, IMultipleReporting
 {
     private readonly IChunkEvolver[] _chunks;
+    private readonly int _averageChunksPerMerge;
 
-    public RandomChunkEvolutionSolver(int chunkCount, IChunkEvolver chunkEvolver)
+    public RandomChunkEvolutionSolver(int chunkCount, int averageChunksPerMerge, IChunkEvolver chunkEvolver)
     {
         _chunks = Enumerable.Range(0, chunkCount)
-                            .Select(_ => chunkEvolver.Copy())
+                            .Select(chunkEvolver.Copy)
                             .ToArray();
+        _averageChunksPerMerge = averageChunksPerMerge;
     }
 
     public SolverReport? GetReport()
@@ -83,12 +85,11 @@ internal sealed class RandomChunkEvolutionSolver : ISolver, IMultipleReporting
 
     private async Task<IChunkEvolver> GetRandomChunk(TransformBlock<IChunkEvolver, IChunkEvolver> block, Random random, CancellationToken cancellationToken)
     {
-        int chunkCounter = random.Next(0, _chunks.Length);
-        while (chunkCounter < 0)
+        int chunkCount = random.Next(0, _averageChunksPerMerge);
+        for (int i = 0; i < chunkCount; i++)
         {
             var chunk = await block.ReceiveAsync(cancellationToken);
             await AddToBlock(block, chunk, cancellationToken);
-            chunkCounter--;
         }
 
         return await block.ReceiveAsync(cancellationToken);
@@ -105,6 +106,6 @@ internal sealed class RandomChunkEvolutionSolver : ISolver, IMultipleReporting
 
     public ISolver Copy()
     {
-        return new RandomChunkEvolutionSolver(_chunks.Length, _chunks[0]);
+        return new RandomChunkEvolutionSolver(_chunks.Length, _averageChunksPerMerge, _chunks[0]);
     }
 }

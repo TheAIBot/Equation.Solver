@@ -9,5 +9,5 @@ internal interface IChunkEvolver : IReporting
 
     void UpdateBestEquation();
 
-    IChunkEvolver Copy();
+    IChunkEvolver Copy(int randomSeed);
 }
