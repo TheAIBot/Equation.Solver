@@ -1,6 +1,6 @@
 ﻿namespace Equation.Solver.Solvers;
 
-internal sealed class ParallelSolver : ISolver
+internal sealed class ParallelSolver : ISolver, IMultipleReporting
 {
     private readonly ISolver[] _solvers;
 
