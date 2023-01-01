@@ -10,7 +10,7 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
     private readonly float _candidateRandomizationRate;
     private readonly int _parameterCount;
     private readonly int _outputCount;
-    private readonly Random _random = new Random();
+    private readonly Random _random;
     private readonly ScoredProblemEquation[] _equations;
     private readonly EquationValues _equationValues;
     private long _iterationCount = 0;
