@@ -58,17 +58,15 @@ internal readonly record struct SlimEquationScore(int WrongBits) : IComparable<S
     private static void AddIndexesToStack(int staticResultSize, int depth, Stack<NandDistance> nodes, NandOperator nandOperator, HashSet<int> nodesUsed)
     {
         int leftIndex = nandOperator.LeftValueIndex - staticResultSize;
-        if (leftIndex > 0)
+        if (leftIndex > 0 && nodesUsed.Add(leftIndex))
         {
             nodes.Push(new NandDistance(depth + 1, leftIndex));
-            nodesUsed.Add(leftIndex);
         }
 
         int rightIndex = nandOperator.RightValueIndex - staticResultSize;
-        if (rightIndex > 0)
+        if (rightIndex > 0 && nodesUsed.Add(rightIndex))
         {
             nodes.Push(new NandDistance(depth + 1, rightIndex));
-            nodesUsed.Add(rightIndex);
         }
     }
 
