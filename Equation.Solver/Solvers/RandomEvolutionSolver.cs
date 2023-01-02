@@ -9,7 +9,7 @@ internal sealed class RandomEvolutionSolver : ISolver
     private readonly float _candidateCompetitionRate;
     private readonly float _candidateRandomizationRate;
     private long _iterationCount;
-    private int? _bestScore;
+    private EquationScore? _bestScore;
     [AllowNull]
     private ProblemEquation _bestEquation;
     private bool _isRunning = false;
@@ -50,8 +50,8 @@ internal sealed class RandomEvolutionSolver : ISolver
             }
 
             _iterationCount = 0;
-            _bestScore = int.MaxValue;
-            while (_bestScore != 0 && !cancellationToken.IsCancellationRequested)
+            _bestScore = EquationScore.MaxScore;
+            while (_bestScore?.WrongBits != 0 && !cancellationToken.IsCancellationRequested)
             {
                 _iterationCount += _candidateCount;
                 int competitionCount = (int)(_candidateCount * _candidateCompetitionRate);
@@ -62,8 +62,8 @@ internal sealed class RandomEvolutionSolver : ISolver
                     ProblemEquation firstEquation = equations[firstCompetitorIndex];
                     ProblemEquation secondEquation = equations[secondCompetitorIndex];
 
-                    int firstCompetitorsScore = problem.EvaluateEquation(firstEquation, equationValues);
-                    int secondCompetitorsScore = problem.EvaluateEquation(secondEquation, equationValues);
+                    SlimEquationScore firstCompetitorsScore = problem.EvaluateEquation(firstEquation, equationValues);
+                    SlimEquationScore secondCompetitorsScore = problem.EvaluateEquation(secondEquation, equationValues);
                     if (firstCompetitorsScore == secondCompetitorsScore)
                     {
                         continue;
@@ -73,7 +73,7 @@ internal sealed class RandomEvolutionSolver : ISolver
                         secondEquation.CopyFrom(firstEquation);
                         if (firstCompetitorsScore < _bestScore)
                         {
-                            _bestScore = firstCompetitorsScore;
+                            _bestScore = firstCompetitorsScore.ToFullScore(equationValues, firstEquation);
                             _bestEquation = firstEquation.Copy();
                         }
                     }
@@ -82,7 +82,7 @@ internal sealed class RandomEvolutionSolver : ISolver
                         firstEquation.CopyFrom(secondEquation);
                         if (secondCompetitorsScore < _bestScore)
                         {
-                            _bestScore = secondCompetitorsScore;
+                            _bestScore = secondCompetitorsScore.ToFullScore(equationValues, secondEquation);
                             _bestEquation = secondEquation.Copy();
                         }
                     }

@@ -14,11 +14,11 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
     private readonly ScoredProblemEquation[] _equations;
     private readonly EquationValues _equationValues;
     private long _iterationCount = 0;
-    private int _bestScore = int.MaxValue;
+    private EquationScore _bestScore = EquationScore.MaxScore;
     [AllowNull]
     private ProblemEquation _bestEquation;
     public ScoredProblemEquation[] Equations => _equations;
-    public int BestScore => _bestScore;
+    public EquationScore BestScore => _bestScore;
 
     public RandomChunkEvolver(int operatorCount, int candidateCount, float candidateCompetitionRate, float candidateRandomizationRate, int parameterCount, int outputCount)
         : this(operatorCount, candidateCount, candidateCompetitionRate, candidateRandomizationRate, parameterCount, outputCount, new Random())
@@ -39,14 +39,14 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
         _equationValues = new EquationValues(parameterCount, _operatorCount);
         for (int i = 0; i < _equations.Length; i++)
         {
-            _equations[i] = new ScoredProblemEquation(int.MaxValue, new ProblemEquation(_operatorCount, outputCount));
+            _equations[i] = new ScoredProblemEquation(EquationScore.MaxScore.ToSlimScore(), new ProblemEquation(_operatorCount, outputCount));
             RandomSolver.Randomize(_random, _equations[i].Equation, _equationValues);
         }
     }
 
     public SolverReport? GetReport()
     {
-        if (_bestScore == int.MaxValue)
+        if (_bestScore == EquationScore.MaxScore)
         {
             return null;
         }
@@ -56,6 +56,19 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
     public void EvolveChunk(EquationProblem problem)
     {
         _iterationCount += _candidateCount;
+
+        int operatorCountToRandomize = (int)(_operatorCount * _candidateRandomizationRate);
+        for (int i = 0; i < _equations.Length; i++)
+        {
+            RandomizeSmallPartOfEquation(_random, _equations[i].Equation, _equationValues, operatorCountToRandomize);
+        }
+
+        if (_bestEquation != null)
+        {
+            int bestEquationInsertIndex = _random.Next(0, _equations.Length);
+            _equations[bestEquationInsertIndex] = new ScoredProblemEquation(_bestScore.ToSlimScore(), _bestEquation);
+        }
+
         int competitionCount = (int)(_candidateCount * _candidateCompetitionRate);
         for (int i = 0; i < competitionCount; i++)
         {
@@ -64,8 +77,8 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
             ref ScoredProblemEquation firstEquation = ref _equations[firstCompetitorIndex];
             ref ScoredProblemEquation secondEquation = ref _equations[secondCompetitorIndex];
 
-            int firstCompetitorsScore = problem.EvaluateEquation(firstEquation.Equation, _equationValues);
-            int secondCompetitorsScore = problem.EvaluateEquation(secondEquation.Equation, _equationValues);
+            SlimEquationScore firstCompetitorsScore = problem.EvaluateEquation(firstEquation.Equation, _equationValues);
+            SlimEquationScore secondCompetitorsScore = problem.EvaluateEquation(secondEquation.Equation, _equationValues);
 
             firstEquation.Score = firstCompetitorsScore;
             secondEquation.Score = secondCompetitorsScore;
@@ -79,7 +92,7 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
                 secondEquation.Equation.CopyFrom(firstEquation.Equation);
                 if (firstCompetitorsScore < _bestScore)
                 {
-                    _bestScore = firstCompetitorsScore;
+                    _bestScore = firstCompetitorsScore.ToFullScore(_equationValues, firstEquation.Equation);
                     _bestEquation = firstEquation.Equation.Copy();
                 }
             }
@@ -88,26 +101,17 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
                 firstEquation.Equation.CopyFrom(secondEquation.Equation);
                 if (secondCompetitorsScore < _bestScore)
                 {
-                    _bestScore = secondCompetitorsScore;
+                    _bestScore = secondCompetitorsScore.ToFullScore(_equationValues, secondEquation.Equation);
                     _bestEquation = secondEquation.Equation.Copy();
                 }
             }
         }
-
-        int operatorCountToRandomize = (int)(_operatorCount * _candidateRandomizationRate);
-        for (int i = 0; i < _equations.Length; i++)
-        {
-            RandomizeSmallPartOfEquation(_random, _equations[i].Equation, _equationValues, operatorCountToRandomize);
-        }
-
-        int bestEquationInsertIndex = _random.Next(0, _equations.Length);
-        _equations[bestEquationInsertIndex] = new ScoredProblemEquation(_bestScore, _bestEquation);
     }
 
     public void UpdateBestEquation()
     {
         ScoredProblemEquation bestEquation = _equations.MinBy(x => x.Score);
-        _bestScore = bestEquation.Score;
+        _bestScore = bestEquation.Score.ToFullScore(_equationValues, bestEquation.Equation);
         _bestEquation = bestEquation.Equation;
     }
 

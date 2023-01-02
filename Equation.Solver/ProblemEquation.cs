@@ -8,6 +8,7 @@ internal sealed class ProblemEquation
     private readonly NandOperator[] _nandOperators;
     private readonly int _outputSize;
     public Span<NandOperator> NandOperators => _nandOperators;
+    public int OutputSize => _outputSize;
 
     public ProblemEquation(int operatorCount, int outputSize)
     {

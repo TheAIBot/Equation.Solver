@@ -13,7 +13,7 @@ internal sealed class EquationProblem
         _examples = examples;
     }
 
-    public int EvaluateEquation(ProblemEquation equation, EquationValues equationValues)
+    public SlimEquationScore EvaluateEquation(ProblemEquation equation, EquationValues equationValues)
     {
         int score = 0;
         for (int i = 0; i < _examples.Length; i++)
@@ -24,6 +24,6 @@ internal sealed class EquationProblem
             score += example.Output.CalculateDifference(equationResult);
         }
 
-        return score;
+        return new SlimEquationScore(score);
     }
 }

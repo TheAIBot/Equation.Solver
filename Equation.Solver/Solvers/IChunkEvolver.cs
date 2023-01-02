@@ -3,7 +3,7 @@
 internal interface IChunkEvolver : IReporting
 {
     ScoredProblemEquation[] Equations { get; }
-    int BestScore { get; }
+    EquationScore BestScore { get; }
 
     void EvolveChunk(EquationProblem problem);
 

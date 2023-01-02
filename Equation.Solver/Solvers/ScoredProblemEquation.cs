@@ -2,10 +2,10 @@
 
 internal struct ScoredProblemEquation
 {
-    public int Score;
+    public SlimEquationScore Score;
     public ProblemEquation Equation;
 
-    public ScoredProblemEquation(int score, ProblemEquation equation)
+    public ScoredProblemEquation(SlimEquationScore score, ProblemEquation equation)
     {
         Score = score;
         Equation = equation;

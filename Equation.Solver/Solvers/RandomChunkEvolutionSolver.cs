@@ -22,7 +22,7 @@ internal sealed class RandomChunkEvolutionSolver : ISolver, IMultipleReporting
         {
             return null;
         }
-        SolverReport bestScoreReport = reports.MinBy(x => x.BestScore) ?? throw new InvalidOperationException("No best report was found");
+        SolverReport bestScoreReport = reports.MinBy(x => x.BestScore.WrongBits) ?? throw new InvalidOperationException("No best report was found");
 
         return new SolverReport(reports.Sum(x => x.IterationCount), bestScoreReport.BestScore, bestScoreReport.BestEquation);
     }
@@ -54,7 +54,7 @@ internal sealed class RandomChunkEvolutionSolver : ISolver, IMultipleReporting
             await AddToBlock(parallelBlock, chunk, cancellationToken);
         }
 
-        while (_chunks.Min(x => x.BestScore) > 0)
+        while (_chunks.Min(x => x.BestScore.WrongBits) > 0)
         {
             IChunkEvolver firstChunk = await GetRandomChunk(parallelBlock, random, cancellationToken);
             IChunkEvolver secondChunk = await GetRandomChunk(parallelBlock, random, cancellationToken);

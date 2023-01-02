@@ -6,7 +6,7 @@ internal sealed class RandomSolver : ISolver
 {
     private readonly int _operatorCount;
     private long _iterationCount;
-    private int _bestScore;
+    private EquationScore _bestScore;
     [AllowNull]
     private ProblemEquation _bestEquation;
     private bool _isRunning = false;
@@ -35,16 +35,16 @@ internal sealed class RandomSolver : ISolver
             var equationValues = new EquationValues(problem.ParameterCount, _operatorCount);
 
             _iterationCount = 0;
-            _bestScore = int.MaxValue;
-            while (_bestScore != 0 && !cancellationToken.IsCancellationRequested)
+            _bestScore = EquationScore.MaxScore;
+            while (_bestScore.WrongBits != 0 && !cancellationToken.IsCancellationRequested)
             {
                 _iterationCount++;
                 Randomize(random, equation, equationValues);
 
-                int score = problem.EvaluateEquation(equation, equationValues);
+                SlimEquationScore score = problem.EvaluateEquation(equation, equationValues);
                 if (score < _bestScore)
                 {
-                    _bestScore = score;
+                    _bestScore = score.ToFullScore(equationValues, equation);
                     _bestEquation = equation.Copy();
                 }
             }

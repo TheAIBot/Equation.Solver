@@ -6,8 +6,11 @@ namespace Equation.Solver;
 
 internal readonly struct NandOperator
 {
-    public readonly int _leftValueIndex;
-    public readonly int _rightValueIndex;
+    private readonly int _leftValueIndex;
+    private readonly int _rightValueIndex;
+
+    public int LeftValueIndex => _leftValueIndex / Vector256<int>.Count;
+    public int RightValueIndex => _rightValueIndex / Vector256<int>.Count;
 
     public NandOperator(int leftValueIndex, int rightValueIndex)
     {
