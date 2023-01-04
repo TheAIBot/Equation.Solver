@@ -62,6 +62,7 @@ internal sealed class Program
 
     private static IEnumerable<(bool[] inputs, bool[] outputs)> CreateBiArgOperatorExamplesAsInts(int exampleCount, int bitCount, Func<int, int, int> function)
     {
+        Random random = new Random(1);
         for (int exampleCounter = 0; exampleCounter < exampleCount; exampleCounter++)
         {
             bool[] inputs = new bool[bitCount * 2];
@@ -69,8 +70,8 @@ internal sealed class Program
             Span<bool> rightInput = inputs.AsSpan(bitCount, bitCount);
             bool[] outputs = new bool[bitCount];
 
-            int leftValue = exampleCounter;
-            int rightValue = exampleCounter + 1;
+            int leftValue = random.Next(0, (1 << (bitCount - 1)) + 1);
+            int rightValue = random.Next(0, (1 << (bitCount - 1)) + 1);
             int outputValue = function(leftValue, rightValue);
 
             for (int bitIndex = 0; bitIndex < bitCount; bitIndex++)
