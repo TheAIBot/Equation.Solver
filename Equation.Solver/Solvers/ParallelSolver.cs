@@ -23,7 +23,7 @@ internal sealed class ParallelSolver : ISolver, IMultipleReporting
         {
             return null;
         }
-        SolverReport bestScoreReport = reports.MinBy(x => x.BestScore) ?? throw new InvalidOperationException("No best report was found");
+        SolverReport bestScoreReport = reports.MinBy(x => x.BestScore.WrongBits) ?? throw new InvalidOperationException("No best report was found");
 
         return new SolverReport(reports.Sum(x => x.IterationCount), bestScoreReport.BestScore, bestScoreReport.BestEquation);
     }
