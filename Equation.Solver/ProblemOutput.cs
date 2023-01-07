@@ -5,6 +5,8 @@ namespace Equation.Solver;
 
 internal readonly record struct ProblemOutput(Vector256<int>[] Outputs)
 {
+    public int Count => Outputs.Length;
+
     public int CalculateDifference(ReadOnlySpan<Vector256<int>> compareTo)
     {
         if (compareTo.Length != Outputs.Length)
