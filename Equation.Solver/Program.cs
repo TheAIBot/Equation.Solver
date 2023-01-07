@@ -6,12 +6,13 @@ internal sealed class Program
 {
     static async Task Main(string[] args)
     {
-        ProblemExample[] examples = ProblemExample.ConvertToExamples(CreateBiArgOperatorExamplesAsInts(10_000, 16, (x, y) => x + y)).ToArray();
+        ProblemExample[] examples = ProblemExample.ConvertToExamples(CreateBiArgOperatorExamplesAsInts(1_000, 10, (x, y) => x + y)).ToArray();
 
         var problem = new EquationProblem(examples);
-        //ISolver solver = new ParallelSolver(new RandomSolver(20));
+        //ISolver solver = new ParallelSolver(new RandomSolver(200));
+        ISolver solver = new ParallelSolver(new EvolveBestSolver(2000, 0.02f));
         //ISolver solver = new ParallelSolver(new RandomEvolutionSolver(100, 100_000, 0.1f, 0.025f));
-        ISolver solver = new RandomChunkEvolutionSolver(100, 10_000, new RandomChunkEvolver(200, 10_000, 0.1f, 0.02f, problem.ParameterCount, problem.OutputCount));
+        //ISolver solver = new RandomChunkEvolutionSolver(100, 10_000, new RandomChunkEvolver(200, 10_000, 0.1f, 0.02f, problem.ParameterCount, problem.OutputCount));
 
 
         await RunSolver(solver, problem);

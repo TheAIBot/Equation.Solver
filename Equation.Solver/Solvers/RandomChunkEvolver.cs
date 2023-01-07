@@ -66,7 +66,8 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
         if (_bestEquation != null)
         {
             int bestEquationInsertIndex = _random.Next(0, _equations.Length);
-            _equations[bestEquationInsertIndex] = new ScoredProblemEquation(_bestScore.ToSlimScore(), _bestEquation);
+            _equations[bestEquationInsertIndex].Score = _bestScore.ToSlimScore();
+            _equations[bestEquationInsertIndex].Equation.CopyFrom(_bestEquation);
         }
 
         int competitionCount = (int)(_candidateCount * _candidateCompetitionRate);
@@ -120,7 +121,7 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
         return new RandomChunkEvolver(_operatorCount, _candidateCount, _candidateCompetitionRate, _candidateRandomizationRate, _parameterCount, _outputCount, new Random(randomSeed));
     }
 
-    private static void RandomizeSmallPartOfEquation(Random random, ProblemEquation equation, EquationValues equationValues, int operatorCountToRandomize)
+    internal static void RandomizeSmallPartOfEquation(Random random, ProblemEquation equation, EquationValues equationValues, int operatorCountToRandomize)
     {
         Span<NandOperator> operators = equation.NandOperators;
         int staticResultSize = equationValues.StaticResultSize;
