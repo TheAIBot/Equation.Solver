@@ -7,11 +7,9 @@ public sealed class NandOperatorTest
     [Fact]
     public unsafe void Nand_WithNandTruthTable_ExpectBitwiseNand()
     {
-        Span<Vector256<int>> values = stackalloc Vector256<int>[]
-        {
-            Vector256.Create(0b1010),
-            Vector256.Create(0b1100)
-        };
+        Span<Vector256<int>> values = TestHelper.CreateAlignedSpan(2);
+        values[0] = Vector256.Create(0b1010);
+        values[1] = Vector256.Create(0b1100);
         var nand = new NandOperator(0, 1);
         int expected = 0b0111;
 
