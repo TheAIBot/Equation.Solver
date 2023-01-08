@@ -8,23 +8,23 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
     {
         var inputs = ConvertToExampleVectors(examples.Select(x => x.inputs));
         var outputs = ConvertToExampleVectors(examples.Select(x => x.outputs));
-        foreach ((Vector256<int>[] inputs, Vector256<int>[] outputs) exampleVectors in inputs.Zip(outputs))
+        foreach (((Vector256<int>[] inputs, Vector256<int> mask) input, (Vector256<int>[] outputs, Vector256<int> mask) output) exampleVectors in inputs.Zip(outputs))
         {
-            var problemInput = new ProblemInput(exampleVectors.inputs);
-            var problemOutput = new ProblemOutput(exampleVectors.outputs);
+            var problemInput = new ProblemInput(exampleVectors.input.inputs);
+            var problemOutput = new ProblemOutput(exampleVectors.output.outputs, exampleVectors.output.mask);
             yield return new ProblemExample(problemInput, problemOutput);
         }
     }
 
-    private static IEnumerable<Vector256<int>[]> ConvertToExampleVectors(IEnumerable<bool[]> examples)
+    private static IEnumerable<(Vector256<int>[] values, Vector256<int> mask)> ConvertToExampleVectors(IEnumerable<bool[]> examples)
     {
         return ConvertToExampleVectors(ConvertToExampleInts(examples));
     }
 
-    private static IEnumerable<Vector256<int>[]> ConvertToExampleVectors(IEnumerable<int[]> examplesAsInts)
+    private static IEnumerable<(Vector256<int>[] values, Vector256<int> mask)> ConvertToExampleVectors(IEnumerable<(int[] values, int mask)> examplesAsInts)
     {
         int? bitLength = null;
-        foreach (int[][] exampleChunk in examplesAsInts.Chunk(Vector256<int>.Count))
+        foreach ((int[][] exampleChunk, int[] masks) in examplesAsInts.Chunk(Vector256<int>.Count).Select(x => (x.Select(y => y.values).ToArray(), x.Select(y => y.mask).ToArray())))
         {
             if (!bitLength.HasValue)
             {
@@ -33,9 +33,10 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
             AssertAllArraysAreSameLength(exampleChunk, bitLength.Value);
 
             var exampleVectors = new List<Vector256<int>>();
+            var exampleInt32x8 = new int[Vector256<int>.Count];
             for (int i = 0; i < exampleChunk[0].Length; i++)
             {
-                var exampleInt32x8 = new int[Vector256<int>.Count];
+                Array.Clear(exampleInt32x8);
                 for (int x = 0; x < exampleChunk.Length; x++)
                 {
                     exampleInt32x8[x] = exampleChunk[x][i];
@@ -44,11 +45,18 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
                 exampleVectors.Add(Vector256.Create(exampleInt32x8));
             }
 
-            yield return exampleVectors.ToArray();
+            Array.Clear(exampleInt32x8);
+            for (int x = 0; x < exampleChunk.Length; x++)
+            {
+                exampleInt32x8[x] = masks[x];
+            }
+            var mask = Vector256.Create(exampleInt32x8);
+
+            yield return (exampleVectors.ToArray(), mask);
         }
     }
 
-    private static IEnumerable<int[]> ConvertToExampleInts(IEnumerable<bool[]> examples)
+    private static IEnumerable<(int[] values, int mask)> ConvertToExampleInts(IEnumerable<bool[]> examples)
     {
         int? bitLength = null;
         const int intBitCount = 32;
@@ -62,15 +70,17 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
 
 
             int[] exampleInts = new int[boolExamples[0].Length];
+            int mask = 0;
             for (int i = 0; i < boolExamples.Length; i++)
             {
                 for (int x = 0; x < boolExamples[0].Length; x++)
                 {
                     exampleInts[x] |= (boolExamples[i][x] ? 1 : 0) << i;
                 }
+                mask |= 1 << i;
             }
 
-            yield return exampleInts;
+            yield return (exampleInts, mask);
         }
     }
 

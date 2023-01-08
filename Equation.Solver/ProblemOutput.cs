@@ -3,7 +3,7 @@ using System.Runtime.Intrinsics;
 
 namespace Equation.Solver;
 
-internal readonly record struct ProblemOutput(Vector256<int>[] Outputs)
+internal readonly record struct ProblemOutput(Vector256<int>[] Outputs, Vector256<int> MaskBitsUsed)
 {
     public int Count => Outputs.Length;
 
@@ -18,7 +18,7 @@ internal readonly record struct ProblemOutput(Vector256<int>[] Outputs)
         for (int i = 0; i < Outputs.Length; i++)
         {
             Vector256<int> expected = Outputs[i];
-            Vector256<int> actual = compareTo[i];
+            Vector256<int> actual = compareTo[i] & MaskBitsUsed;
             Vector256<ulong> diff = (expected ^ actual).AsUInt64();
             difference += BitOperations.PopCount(diff.GetElement(0)) +
                           BitOperations.PopCount(diff.GetElement(1)) +
