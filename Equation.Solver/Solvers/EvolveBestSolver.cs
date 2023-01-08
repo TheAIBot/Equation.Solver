@@ -47,9 +47,6 @@ internal sealed class EvolveBestSolver : ISolver
                 {
                     _iterationCount++;
                     iterationsSinceImprovement++;
-                    //equation.CopyFrom(_bestEquation);
-                    //int operatorCountToRandomize = 1;// Math.Clamp(iterationsSinceImprovement / 10_000_000, 1, 5);
-                    //RandomChunkEvolver.RandomizeSmallPartOfEquation(random, equation, equationValues, operatorCountToRandomize);
 
                     int operatorIndex = random.Next(0, equation.NandOperators.Length);
                     NandOperator copyBeforeChange = equation.NandOperators[operatorIndex];
