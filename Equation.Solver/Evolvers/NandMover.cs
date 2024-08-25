@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace Equation.Solver.Solvers;
+namespace Equation.Solver.Evolvers;
 
 internal sealed class NandMover
 {

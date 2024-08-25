@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using Equation.Solver.Evolvers;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Equation.Solver.Solvers;
 
@@ -12,6 +13,7 @@ internal sealed class RandomEvolutionSolver : ISolver
     private readonly float _chanceLoserOverriddenByWinner;
     private readonly float _chanceOnlyMoveOperator;
     private readonly NandMover _nandMover;
+    private readonly NandChanger _nandChanger;
     private long _iterationCount;
     private EquationScore? _bestScore;
     [AllowNull]
@@ -34,6 +36,7 @@ internal sealed class RandomEvolutionSolver : ISolver
         _chanceLoserOverriddenByWinner = chanceLoserOverriddenByWinner;
         _chanceOnlyMoveOperator = chanceOnlyMoveOperator;
         _nandMover = new NandMover(parameterCount, operatorCount);
+        _nandChanger = new NandChanger();
     }
 
     public SolverReport? GetReport()
@@ -118,7 +121,7 @@ internal sealed class RandomEvolutionSolver : ISolver
                     }
                     else
                     {
-                        RandomizeSmallPartOfEquation(random, equations[i], equationValues, operatorCountToRandomize);
+                        _nandChanger.RandomizeSmallPartOfEquation(random, equations[i], equationValues, operatorCountToRandomize);
                     }
                 }
             }
@@ -140,18 +143,5 @@ internal sealed class RandomEvolutionSolver : ISolver
                                          _candidateRandomizationRate,
                                          _chanceLoserOverriddenByWinner,
                                          _chanceOnlyMoveOperator);
-    }
-
-    private static void RandomizeSmallPartOfEquation(Random random, ProblemEquation equation, EquationValues equationValues, int operatorCountToRandomize)
-    {
-        Span<NandOperator> operators = equation.NandOperators;
-        int staticResultSize = equationValues.StaticResultSize;
-        for (int i = 0; i < operatorCountToRandomize; i++)
-        {
-            int operatorIndex = random.Next(0, operators.Length);
-            int leftValueIndex = random.Next(0, staticResultSize + operatorIndex);
-            int rightValueIndex = random.Next(0, staticResultSize + operatorIndex);
-            operators[operatorIndex] = new NandOperator(leftValueIndex, rightValueIndex);
-        }
     }
 }
