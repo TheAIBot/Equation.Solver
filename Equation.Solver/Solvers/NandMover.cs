@@ -4,25 +4,40 @@ namespace Equation.Solver.Solvers;
 
 internal sealed class NandMover
 {
+    private readonly bool[] _operatorsUsed;
+    private readonly NandMoveConstraint[] _nandMoveConstraints;
+    private readonly Stack<int> _nodesToCheck;
+    private readonly NandIndexMoveConstraint[] _nandsUsedMoveConstraints;
+
+    public NandMover(int staticResultSize, int operatorCount)
+    {
+        _operatorsUsed = new bool[staticResultSize + operatorCount];
+        _nandMoveConstraints = new NandMoveConstraint[_operatorsUsed.Length];
+        _nodesToCheck = new Stack<int>();
+        _nandsUsedMoveConstraints = new NandIndexMoveConstraint[_operatorsUsed.Length];
+    }
+
     public void MoveRandomNandOperator(Random random, int staticResultSize, int outputCount, Span<NandOperator> operators)
     {
-        (NandIndexMoveConstraint[] nandIndexMoveConstraints, bool[] operatorsUsed) = GetMoveConstraintsOfAllUsedNands(staticResultSize, outputCount, operators);
-        if (nandIndexMoveConstraints.Length == 0)
+        NandMoveConstraints nandIndexMoveConstraints = GetMoveConstraintsOfAllUsedNands(staticResultSize, outputCount, operators);
+        if (nandIndexMoveConstraints.NandIndexMoveConstraints.Length == 0)
         {
             return;
         }
 
-        int moveConstraintToMove = random.Next(nandIndexMoveConstraints.Length);
-        TryMoveOperator(random, staticResultSize, outputCount, operators, nandIndexMoveConstraints, moveConstraintToMove, operatorsUsed);
+        int moveConstraintToMove = random.Next(nandIndexMoveConstraints.NandIndexMoveConstraints.Length);
+        TryMoveOperator(random, staticResultSize, outputCount, operators, nandIndexMoveConstraints.NandIndexMoveConstraints, moveConstraintToMove, nandIndexMoveConstraints.OperatorsUsed);
     }
 
-    private static (NandIndexMoveConstraint[], bool[] operatorsUsed) GetMoveConstraintsOfAllUsedNands(int staticResultSize, int outputCount, ReadOnlySpan<NandOperator> nandOperators)
+    private NandMoveConstraints GetMoveConstraintsOfAllUsedNands(int staticResultSize, int outputCount, ReadOnlySpan<NandOperator> nandOperators)
     {
-        var nodesUsed = new bool[nandOperators.Length + staticResultSize];
-        var nandMoveConstraints = new NandMoveConstraint[nodesUsed.Length];
+        var nodesUsed = _operatorsUsed;
+        Array.Fill(nodesUsed, false);
+        var nandMoveConstraints = _nandMoveConstraints;
         Array.Fill(nandMoveConstraints, new NandMoveConstraint(int.MinValue, int.MaxValue));
         int nodesUsedCount = 0;
-        var nodesToCheck = new Stack<int>();
+        var nodesToCheck = _nodesToCheck;
+        nodesToCheck.Clear();
         int startNodes = outputCount;
         for (int i = 0; i < startNodes; i++)
         {
@@ -40,7 +55,7 @@ internal sealed class NandMover
             AddIndexesToStack(staticResultSize, nodesToCheck, nandOperator, nandIndex, nodesUsed, ref nodesUsedCount, nandMoveConstraints);
         }
 
-        var nandsUsedMoveConstraints = new NandIndexMoveConstraint[nodesUsedCount];
+        Span<NandIndexMoveConstraint> nandsUsedMoveConstraints = _nandsUsedMoveConstraints.AsSpan(0, nodesUsedCount);
         int nodeIndexesUsedFreeIndex = 0;
         for (int i = 0; i < nodesUsed.Length; i++)
         {
@@ -50,7 +65,7 @@ internal sealed class NandMover
             }
         }
 
-        return (nandsUsedMoveConstraints, nodesUsed);
+        return new NandMoveConstraints(nandsUsedMoveConstraints, nodesUsed);
     }
 
     private static void AddIndexesToStack(int staticResultSize, Stack<int> nodes, NandOperator nandOperator, int nandOperatorIndex, bool[] nodesUsed, ref int nodesUsedCount, NandMoveConstraint[] nandMoveConstraints)
@@ -74,10 +89,6 @@ internal sealed class NandMover
         {
             nodesUsed[nandOperatorIndex] = true;
             nodesUsedCount++;
-            if (nandOperatorIndex >= nodesUsed.Length)
-            {
-
-            }
             nodes.Push(nandOperatorIndex);
         }
 
@@ -89,7 +100,7 @@ internal sealed class NandMover
                                         int staticResultSize,
                                         int outputCount,
                                         Span<NandOperator> operators,
-                                        NandIndexMoveConstraint[] nandIndexMoveConstraints,
+                                        Span<NandIndexMoveConstraint> nandIndexMoveConstraints,
                                         int moveConstraintToMove,
                                         bool[] operatorsUsed)
     {
@@ -162,4 +173,15 @@ internal sealed class NandMover
 
     private record struct NandMoveConstraint(int MaxExclusiveLowerBound, int MinExclusiveUpperBound);
     private record struct NandIndexMoveConstraint(int NandIndex, NandMoveConstraint MoveConstraint);
+    private readonly ref struct NandMoveConstraints
+    {
+        public readonly Span<NandIndexMoveConstraint> NandIndexMoveConstraints;
+        public readonly bool[] OperatorsUsed;
+
+        public NandMoveConstraints(Span<NandIndexMoveConstraint> nandIndexMoveConstraints, bool[] operatorsUsed)
+        {
+            NandIndexMoveConstraints = nandIndexMoveConstraints;
+            OperatorsUsed = operatorsUsed;
+        }
+    }
 }

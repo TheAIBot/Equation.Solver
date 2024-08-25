@@ -4,32 +4,36 @@ namespace Equation.Solver.Solvers;
 
 internal sealed class RandomEvolutionSolver : ISolver
 {
+    private readonly int _parameterCount;
     private readonly int _operatorCount;
     private readonly int _candidateCount;
     private readonly float _candidateCompetitionRate;
     private readonly float _candidateRandomizationRate;
     private readonly float _chanceLoserOverriddenByWinner;
     private readonly float _chanceOnlyMoveOperator;
-    private readonly NandMover _nandMover = new NandMover();
+    private readonly NandMover _nandMover;
     private long _iterationCount;
     private EquationScore? _bestScore;
     [AllowNull]
     private ProblemEquation _bestEquation;
     private bool _isRunning = false;
 
-    public RandomEvolutionSolver(int operatorCount,
+    public RandomEvolutionSolver(int parameterCount,
+                                 int operatorCount,
                                  int candidateCount,
                                  float candidateCompetitionRate,
                                  float candidateRandomizationRate,
                                  float chanceLoserOverriddenByWinner,
                                  float chanceOnlyMoveOperator)
     {
+        _parameterCount = parameterCount;
         _operatorCount = operatorCount;
         _candidateCount = candidateCount;
         _candidateCompetitionRate = candidateCompetitionRate;
         _candidateRandomizationRate = candidateRandomizationRate;
         _chanceLoserOverriddenByWinner = chanceLoserOverriddenByWinner;
         _chanceOnlyMoveOperator = chanceOnlyMoveOperator;
+        _nandMover = new NandMover(parameterCount, operatorCount);
     }
 
     public SolverReport? GetReport()
@@ -129,7 +133,8 @@ internal sealed class RandomEvolutionSolver : ISolver
 
     public ISolver Copy()
     {
-        return new RandomEvolutionSolver(_operatorCount,
+        return new RandomEvolutionSolver(_parameterCount,
+                                         _operatorCount,
                                          _candidateCount,
                                          _candidateCompetitionRate,
                                          _candidateRandomizationRate,
