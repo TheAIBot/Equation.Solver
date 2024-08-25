@@ -8,18 +8,28 @@ internal sealed class RandomEvolutionSolver : ISolver
     private readonly int _candidateCount;
     private readonly float _candidateCompetitionRate;
     private readonly float _candidateRandomizationRate;
+    private readonly float _chanceLoserOverriddenByWinner;
+    private readonly float _chanceOnlyMoveOperator;
+    private readonly NandMover _nandMover = new NandMover();
     private long _iterationCount;
     private EquationScore? _bestScore;
     [AllowNull]
     private ProblemEquation _bestEquation;
     private bool _isRunning = false;
 
-    public RandomEvolutionSolver(int operatorCount, int candidateCount, float candidateCompetitionRate, float candidateRandomizationRate)
+    public RandomEvolutionSolver(int operatorCount,
+                                 int candidateCount,
+                                 float candidateCompetitionRate,
+                                 float candidateRandomizationRate,
+                                 float chanceLoserOverriddenByWinner,
+                                 float chanceOnlyMoveOperator)
     {
         _operatorCount = operatorCount;
         _candidateCount = candidateCount;
         _candidateCompetitionRate = candidateCompetitionRate;
         _candidateRandomizationRate = candidateRandomizationRate;
+        _chanceLoserOverriddenByWinner = chanceLoserOverriddenByWinner;
+        _chanceOnlyMoveOperator = chanceOnlyMoveOperator;
     }
 
     public SolverReport? GetReport()
@@ -68,6 +78,10 @@ internal sealed class RandomEvolutionSolver : ISolver
                     {
                         continue;
                     }
+                    else if (_chanceLoserOverriddenByWinner < random.NextSingle())
+                    {
+                        continue;
+                    }
                     else if (firstCompetitorsScore < secondCompetitorsScore)
                     {
                         secondEquation.CopyFrom(firstEquation);
@@ -91,7 +105,17 @@ internal sealed class RandomEvolutionSolver : ISolver
                 int operatorCountToRandomize = (int)(_operatorCount * _candidateRandomizationRate);
                 for (int i = 0; i < equations.Length; i++)
                 {
-                    RandomizeSmallPartOfEquation(random, equations[i], equationValues, operatorCountToRandomize);
+                    if (random.NextSingle() < _chanceOnlyMoveOperator)
+                    {
+                        _nandMover.MoveRandomNandOperator(random,
+                                                          equationValues.StaticResultSize,
+                                                          equations[i].OutputSize,
+                                                          equations[i].NandOperators);
+                    }
+                    else
+                    {
+                        RandomizeSmallPartOfEquation(random, equations[i], equationValues, operatorCountToRandomize);
+                    }
                 }
             }
 
@@ -105,7 +129,12 @@ internal sealed class RandomEvolutionSolver : ISolver
 
     public ISolver Copy()
     {
-        return new RandomEvolutionSolver(_operatorCount, _candidateCount, _candidateCompetitionRate, _candidateRandomizationRate);
+        return new RandomEvolutionSolver(_operatorCount,
+                                         _candidateCount,
+                                         _candidateCompetitionRate,
+                                         _candidateRandomizationRate,
+                                         _chanceLoserOverriddenByWinner,
+                                         _chanceOnlyMoveOperator);
     }
 
     private static void RandomizeSmallPartOfEquation(Random random, ProblemEquation equation, EquationValues equationValues, int operatorCountToRandomize)
