@@ -2,6 +2,9 @@
 
 internal sealed class FullScorer
 {
+    private readonly HashSet<int> _nodesUsed = new HashSet<int>();
+    private readonly Stack<NandDistance> _nodesToCheck = new Stack<NandDistance>();
+
     public EquationScore ToFullScore(SlimEquationScore slimScore, EquationValues equationValues, ProblemEquation equation)
     {
         (int sequentialNandGates, int nandCount) = CalculateMaxLength(equationValues.StaticResultSize, equation.OutputSize, equation.NandOperators);
@@ -10,8 +13,10 @@ internal sealed class FullScorer
 
     private (int sequentialNandGates, int nandCount) CalculateMaxLength(int staticResultSize, int outputCount, ReadOnlySpan<NandOperator> nandOperators)
     {
-        var nodesUsed = new HashSet<int>();
-        var nodesToCheck = new Stack<NandDistance>();
+        var nodesUsed = _nodesUsed;
+        nodesUsed.Clear();
+        var nodesToCheck = _nodesToCheck;
+        nodesToCheck.Clear();
         int startNodes = outputCount;
         for (int i = 0; i < startNodes; i++)
         {
