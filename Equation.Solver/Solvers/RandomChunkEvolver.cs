@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using Equation.Solver.Score;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Equation.Solver.Solvers;
 
@@ -13,6 +14,7 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
     private readonly Random _random;
     private readonly ScoredProblemEquation[] _equations;
     private readonly EquationValues _equationValues;
+    private readonly FullScorer _fullScorer;
     private long _iterationCount = 0;
     private EquationScore _bestScore = EquationScore.MaxScore;
     [AllowNull]
@@ -37,6 +39,7 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
         _random = random;
         _equations = new ScoredProblemEquation[_candidateCount];
         _equationValues = new EquationValues(parameterCount, _operatorCount);
+        _fullScorer = new FullScorer();
         for (int i = 0; i < _equations.Length; i++)
         {
             _equations[i] = new ScoredProblemEquation(EquationScore.MaxScore.ToSlimScore(), new ProblemEquation(_operatorCount, outputCount));
@@ -93,7 +96,7 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
                 secondEquation.Equation.CopyFrom(firstEquation.Equation);
                 if (firstCompetitorsScore < _bestScore)
                 {
-                    _bestScore = firstCompetitorsScore.ToFullScore(_equationValues, firstEquation.Equation);
+                    _bestScore = _fullScorer.ToFullScore(firstCompetitorsScore, _equationValues, firstEquation.Equation);
                     _bestEquation = firstEquation.Equation.Copy();
                 }
             }
@@ -102,7 +105,7 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
                 firstEquation.Equation.CopyFrom(secondEquation.Equation);
                 if (secondCompetitorsScore < _bestScore)
                 {
-                    _bestScore = secondCompetitorsScore.ToFullScore(_equationValues, secondEquation.Equation);
+                    _bestScore = _fullScorer.ToFullScore(secondCompetitorsScore, _equationValues, secondEquation.Equation);
                     _bestEquation = secondEquation.Equation.Copy();
                 }
             }
@@ -112,7 +115,7 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
     public void UpdateBestEquation()
     {
         ScoredProblemEquation bestEquation = _equations.MinBy(x => x.Score);
-        _bestScore = bestEquation.Score.ToFullScore(_equationValues, bestEquation.Equation);
+        _bestScore = _fullScorer.ToFullScore(bestEquation.Score, _equationValues, bestEquation.Equation);
         _bestEquation = bestEquation.Equation;
     }
 

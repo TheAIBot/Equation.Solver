@@ -1,4 +1,6 @@
-﻿namespace Equation.Solver.Solvers;
+﻿using Equation.Solver.Score;
+
+namespace Equation.Solver.Solvers;
 
 internal struct ScoredProblemEquation
 {

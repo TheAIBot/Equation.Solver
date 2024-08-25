@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using Equation.Solver.Score;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Equation.Solver.Solvers;
 
@@ -6,6 +7,7 @@ internal sealed class EvolveBestSolver : ISolver
 {
     private readonly int _operatorCount;
     private readonly float _candidateRandomizationRate;
+    private readonly FullScorer _fullScorer;
     private long _iterationCount;
     private EquationScore _bestScore;
     [AllowNull]
@@ -16,6 +18,7 @@ internal sealed class EvolveBestSolver : ISolver
     {
         _operatorCount = operatorCount;
         _candidateRandomizationRate = candidateRandomizationRate;
+        _fullScorer = new FullScorer();
     }
 
     public SolverReport? GetReport()
@@ -58,7 +61,7 @@ internal sealed class EvolveBestSolver : ISolver
                     if (score < _bestScore)
                     {
                         iterationsSinceImprovement = 0;
-                        _bestScore = score.ToFullScore(equationValues, equation);
+                        _bestScore = _fullScorer.ToFullScore(score, equationValues, equation);
                         _bestEquation = equation.Copy();
                     }
                     else

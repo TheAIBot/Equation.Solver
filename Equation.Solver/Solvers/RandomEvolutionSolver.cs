@@ -1,4 +1,5 @@
 ﻿using Equation.Solver.Evolvers;
+using Equation.Solver.Score;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Equation.Solver.Solvers;
@@ -14,6 +15,7 @@ internal sealed class RandomEvolutionSolver : ISolver
     private readonly float _chanceOnlyMoveOperator;
     private readonly NandMover _nandMover;
     private readonly NandChanger _nandChanger;
+    private readonly FullScorer _fullScorer;
     private long _iterationCount;
     private EquationScore? _bestScore;
     [AllowNull]
@@ -37,6 +39,7 @@ internal sealed class RandomEvolutionSolver : ISolver
         _chanceOnlyMoveOperator = chanceOnlyMoveOperator;
         _nandMover = new NandMover(parameterCount, operatorCount);
         _nandChanger = new NandChanger();
+        _fullScorer = new FullScorer();
     }
 
     public SolverReport? GetReport()
@@ -94,7 +97,7 @@ internal sealed class RandomEvolutionSolver : ISolver
                         secondEquation.CopyFrom(firstEquation);
                         if (firstCompetitorsScore < _bestScore)
                         {
-                            _bestScore = firstCompetitorsScore.ToFullScore(equationValues, firstEquation);
+                            _bestScore = _fullScorer.ToFullScore(firstCompetitorsScore, equationValues, firstEquation);
                             _bestEquation = firstEquation.Copy();
                         }
                     }
@@ -103,7 +106,7 @@ internal sealed class RandomEvolutionSolver : ISolver
                         firstEquation.CopyFrom(secondEquation);
                         if (secondCompetitorsScore < _bestScore)
                         {
-                            _bestScore = secondCompetitorsScore.ToFullScore(equationValues, secondEquation);
+                            _bestScore = _fullScorer.ToFullScore(secondCompetitorsScore, equationValues, secondEquation);
                             _bestEquation = secondEquation.Copy();
                         }
                     }

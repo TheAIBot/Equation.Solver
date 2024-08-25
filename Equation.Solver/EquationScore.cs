@@ -1,3 +1,4 @@
+﻿using Equation.Solver.Score;
 ﻿namespace Equation.Solver;
 
 internal readonly record struct EquationScore(int WrongBits, int MaxSequentialNandGates, int NandCount)

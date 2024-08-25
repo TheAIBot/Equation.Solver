@@ -1,36 +1,11 @@
-﻿namespace Equation.Solver;
+﻿namespace Equation.Solver.Score;
 
-internal readonly record struct SlimEquationScore(int WrongBits) : IComparable<SlimEquationScore>
+internal sealed class FullScorer
 {
-    public int CompareTo(SlimEquationScore other)
-    {
-        return WrongBits.CompareTo(other.WrongBits);
-    }
-
-    public static bool operator <(SlimEquationScore left, SlimEquationScore right)
-    {
-        return left.WrongBits < right.WrongBits;
-    }
-
-    public static bool operator >(SlimEquationScore left, SlimEquationScore right)
-    {
-        return left.WrongBits > right.WrongBits;
-    }
-
-    public static bool operator <(SlimEquationScore left, EquationScore right)
-    {
-        return left.WrongBits < right.WrongBits;
-    }
-
-    public static bool operator >(SlimEquationScore left, EquationScore right)
-    {
-        return left.WrongBits > right.WrongBits;
-    }
-
-    public EquationScore ToFullScore(EquationValues equationValues, ProblemEquation equation)
+    public EquationScore ToFullScore(SlimEquationScore slimScore, EquationValues equationValues, ProblemEquation equation)
     {
         (int sequentialNandGates, int nandCount) = CalculateMaxLength(equationValues.StaticResultSize, equation.OutputSize, equation.NandOperators);
-        return new EquationScore(WrongBits, sequentialNandGates, nandCount);
+        return new EquationScore(slimScore.WrongBits, sequentialNandGates, nandCount);
     }
 
     private (int sequentialNandGates, int nandCount) CalculateMaxLength(int staticResultSize, int outputCount, ReadOnlySpan<NandOperator> nandOperators)

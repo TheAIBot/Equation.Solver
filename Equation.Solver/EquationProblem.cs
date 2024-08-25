@@ -1,4 +1,5 @@
 ﻿using System.Runtime.Intrinsics;
+using Equation.Solver.Score;
 
 namespace Equation.Solver;
 

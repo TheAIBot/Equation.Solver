@@ -1,10 +1,12 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using Equation.Solver.Score;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Equation.Solver.Solvers;
 
 internal sealed class RandomSolver : ISolver
 {
     private readonly int _operatorCount;
+    private readonly FullScorer _fullScorer;
     private long _iterationCount;
     private EquationScore _bestScore;
     [AllowNull]
@@ -14,6 +16,7 @@ internal sealed class RandomSolver : ISolver
     public RandomSolver(int operatorCount)
     {
         _operatorCount = operatorCount;
+        _fullScorer = new FullScorer();
     }
 
     public SolverReport? GetReport()
@@ -44,7 +47,7 @@ internal sealed class RandomSolver : ISolver
                 SlimEquationScore score = problem.EvaluateEquation(equation, equationValues);
                 if (score < _bestScore)
                 {
-                    _bestScore = score.ToFullScore(equationValues, equation);
+                    _bestScore = _fullScorer.ToFullScore(score, equationValues, equation);
                     _bestEquation = equation.Copy();
                 }
             }
