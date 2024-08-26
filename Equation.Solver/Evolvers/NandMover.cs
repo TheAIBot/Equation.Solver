@@ -26,7 +26,7 @@ internal sealed class NandMover
         }
 
         int moveConstraintToMove = random.Next(nandIndexMoveConstraints.NandIndexMoveConstraints.Length);
-        TryMoveOperator(random, staticResultSize, outputCount, operators, nandIndexMoveConstraints.NandIndexMoveConstraints, moveConstraintToMove, nandIndexMoveConstraints.OperatorsUsed);
+        TryMoveOperator(random, staticResultSize, operators, nandIndexMoveConstraints.NandIndexMoveConstraints, moveConstraintToMove, nandIndexMoveConstraints.OperatorsUsed);
     }
 
     private NandMoveConstraints GetMoveConstraintsOfAllUsedNands(int staticResultSize, int outputCount, ReadOnlySpan<NandOperator> nandOperators)
@@ -41,7 +41,7 @@ internal sealed class NandMover
         int startNodes = outputCount;
         for (int i = 0; i < startNodes; i++)
         {
-            AddIndexesToStack(staticResultSize, nodesToCheck, nandOperators[nandOperators.Length - i - 1], nandOperators.Length - i - 1, nodesUsed, ref nodesUsedCount, nandMoveConstraints);
+            AddIndexesToStack(staticResultSize, nodesToCheck, nandOperators[nandOperators.Length - i - 1], nodesUsed, ref nodesUsedCount, nandMoveConstraints);
         }
 
         while (nodesToCheck.Count > 0)
@@ -52,7 +52,7 @@ internal sealed class NandMover
             // Calculation goes from left to right so can't move left of operator  value it uses
             nandMoveConstraints[nandIndex].MaxExclusiveLowerBound = Math.Max(nandOperator.LeftValueIndex, nandOperator.RightValueIndex);
 
-            AddIndexesToStack(staticResultSize, nodesToCheck, nandOperator, nandIndex, nodesUsed, ref nodesUsedCount, nandMoveConstraints);
+            AddIndexesToStack(staticResultSize, nodesToCheck, nandOperator, nodesUsed, ref nodesUsedCount, nandMoveConstraints);
         }
 
         Span<NandIndexMoveConstraint> nandsUsedMoveConstraints = _nandsUsedMoveConstraints.AsSpan(0, nodesUsedCount);
@@ -68,7 +68,7 @@ internal sealed class NandMover
         return new NandMoveConstraints(nandsUsedMoveConstraints, nodesUsed);
     }
 
-    private static void AddIndexesToStack(int staticResultSize, Stack<int> nodes, NandOperator nandOperator, int nandOperatorIndex, bool[] nodesUsed, ref int nodesUsedCount, NandMoveConstraint[] nandMoveConstraints)
+    private static void AddIndexesToStack(int staticResultSize, Stack<int> nodes, NandOperator nandOperator, bool[] nodesUsed, ref int nodesUsedCount, NandMoveConstraint[] nandMoveConstraints)
     {
         int leftIndex = nandOperator.LeftValueIndex - staticResultSize;
         if (leftIndex > 0)
@@ -98,7 +98,6 @@ internal sealed class NandMover
 
     private static void TryMoveOperator(Random random,
                                         int staticResultSize,
-                                        int outputCount,
                                         Span<NandOperator> operators,
                                         Span<NandIndexMoveConstraint> nandIndexMoveConstraints,
                                         int moveConstraintToMove,
