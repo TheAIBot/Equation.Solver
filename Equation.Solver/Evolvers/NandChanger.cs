@@ -2,7 +2,11 @@
 
 internal sealed class NandChanger
 {
-    public void RandomizeSmallPartOfEquation(Random random, ProblemEquation equation, EquationValues equationValues, int operatorCountToRandomize)
+    /// <summary>
+    /// Randomly changes the inputs of randomly selected operators.
+    /// </summary>
+    /// <returns>False if change has no effect on output and True if it may have an effect.</returns>
+    public bool RandomizeSmallPartOfEquation(Random random, ProblemEquation equation, EquationValues equationValues, int operatorCountToRandomize)
     {
         bool wasAnyChangedOperatorUsed = false;
         Span<NandOperator> operators = equation.NandOperators;
@@ -18,9 +22,10 @@ internal sealed class NandChanger
 
         if (!wasAnyChangedOperatorUsed)
         {
-            return;
+            return false;
         }
 
         equation.RecalculateOperatorsUsed(staticResultSize);
+        return true;
     }
 }

@@ -11,7 +11,7 @@ internal sealed class Program
         var problem = new EquationProblem(examples);
         //ISolver solver = new ParallelSolver(new RandomSolver(200));
         //ISolver solver = new ParallelSolver(new EvolveBestSolver(20000, 0.0002f));
-        ISolver solver = new ParallelSolver(new RandomEvolutionSolver(problem.ParameterCount, 1000, 100_000, 0.1f, 0.025f, 0.05f, 0.5f));
+        ISolver solver = new ParallelSolver(new RandomEvolutionSolver(problem.ParameterCount, 1000, 100_000, 0.1f, 0.0025f, 0.0001f, 0.5f));
         //ISolver solver = new RandomChunkEvolutionSolver(100, 10_000, new RandomChunkEvolver(200, 10_000, 0.1f, 0.02f, problem.ParameterCount, problem.OutputCount));
 
 

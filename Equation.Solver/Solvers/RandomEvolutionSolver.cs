@@ -11,7 +11,7 @@ internal sealed class RandomEvolutionSolver : ISolver
     private readonly int _candidateCount;
     private readonly float _candidateCompetitionRate;
     private readonly float _candidateRandomizationRate;
-    private readonly float _chanceLoserOverriddenByWinner;
+    private readonly float _candidateRandomEvolutionRate;
     private readonly float _chanceOnlyMoveOperator;
     private readonly NandMover _nandMover;
     private readonly NandChanger _nandChanger;
@@ -27,7 +27,7 @@ internal sealed class RandomEvolutionSolver : ISolver
                                  int candidateCount,
                                  float candidateCompetitionRate,
                                  float candidateRandomizationRate,
-                                 float chanceLoserOverriddenByWinner,
+                                 float candidateRandomEvolutionRate,
                                  float chanceOnlyMoveOperator)
     {
         _parameterCount = parameterCount;
@@ -35,7 +35,7 @@ internal sealed class RandomEvolutionSolver : ISolver
         _candidateCount = candidateCount;
         _candidateCompetitionRate = candidateCompetitionRate;
         _candidateRandomizationRate = candidateRandomizationRate;
-        _chanceLoserOverriddenByWinner = chanceLoserOverriddenByWinner;
+        _candidateRandomEvolutionRate = candidateRandomEvolutionRate;
         _chanceOnlyMoveOperator = chanceOnlyMoveOperator;
         _nandMover = new NandMover(parameterCount, operatorCount);
         _nandChanger = new NandChanger();
@@ -61,12 +61,12 @@ internal sealed class RandomEvolutionSolver : ISolver
         try
         {
             var random = new Random();
-            var equations = new ProblemEquation[_candidateCount];
+            var equationsWithScore = new EquationWithScore[_candidateCount];
             var equationValues = new EquationValues(problem.ParameterCount, _operatorCount);
-            for (int i = 0; i < equations.Length; i++)
+            for (int i = 0; i < equationsWithScore.Length; i++)
             {
-                equations[i] = new ProblemEquation(_operatorCount, problem.OutputCount);
-                RandomSolver.Randomize(random, equations[i], equationValues);
+                equationsWithScore[i] = new EquationWithScore(new ProblemEquation(_operatorCount, problem.OutputCount), null);
+                RandomSolver.Randomize(random, equationsWithScore[i].Equation, equationValues);
             }
 
             _iterationCount = 0;
@@ -76,32 +76,37 @@ internal sealed class RandomEvolutionSolver : ISolver
                 int competitionCount = (int)(_candidateCount * _candidateCompetitionRate);
                 for (int i = 0; i < competitionCount; i++)
                 {
-                    int firstCompetitorIndex = random.Next(0, equations.Length);
-                    int secondCompetitorIndex = random.Next(0, equations.Length);
-                    ProblemEquation firstEquation = equations[firstCompetitorIndex];
-                    ProblemEquation secondEquation = equations[secondCompetitorIndex];
+                    int firstCompetitorIndex = random.Next(0, equationsWithScore.Length);
+                    int secondCompetitorIndex = random.Next(0, equationsWithScore.Length);
+                    ref EquationWithScore firstEquationWithScore = ref equationsWithScore[firstCompetitorIndex];
+                    ref EquationWithScore secondEquationWithScore = ref equationsWithScore[secondCompetitorIndex];
 
-                    SlimEquationScore firstCompetitorsScore = problem.EvaluateEquation(firstEquation, equationValues);
-                    SlimEquationScore secondCompetitorsScore = problem.EvaluateEquation(secondEquation, equationValues);
-                    if (firstCompetitorsScore == secondCompetitorsScore)
+                    firstEquationWithScore.Score ??= problem.EvaluateEquation(firstEquationWithScore.Equation, equationValues);
+                    secondEquationWithScore.Score ??= problem.EvaluateEquation(secondEquationWithScore.Equation, equationValues);
+                    if (firstEquationWithScore.Score == secondEquationWithScore.Score)
                     {
                         continue;
                     }
-                    else if (_chanceLoserOverriddenByWinner < random.NextSingle())
+                    else if (firstEquationWithScore.Score < secondEquationWithScore.Score)
                     {
-                        continue;
-                    }
-                    else if (firstCompetitorsScore < secondCompetitorsScore)
-                    {
-                        ReplaceWorseEquationWithBetterEquationAndEvolve(random, equationValues, firstEquation, firstCompetitorsScore, secondEquation);
+                        ReplaceWorseEquationWithBetterEquationAndEvolve(random, equationValues, ref firstEquationWithScore, ref secondEquationWithScore);
                     }
                     else
                     {
-                        ReplaceWorseEquationWithBetterEquationAndEvolve(random, equationValues, secondEquation, secondCompetitorsScore, firstEquation);
+                        ReplaceWorseEquationWithBetterEquationAndEvolve(random, equationValues, ref secondEquationWithScore, ref firstEquationWithScore);
                     }
                 }
-
                 _iterationCount += competitionCount;
+
+                int randomEvolutionCount = (int)(_candidateCount * _candidateRandomEvolutionRate);
+                for (int i = 0; i < randomEvolutionCount; i++)
+                {
+                    int equationIndex = random.Next(equationsWithScore.Length);
+                    ref EquationWithScore equationWithScore = ref equationsWithScore[equationIndex];
+
+                    Evolve(random, equationValues, ref equationWithScore);
+                }
+                _iterationCount += randomEvolutionCount;
             }
 
             return Task.CompletedTask;
@@ -119,40 +124,46 @@ internal sealed class RandomEvolutionSolver : ISolver
                                          _candidateCount,
                                          _candidateCompetitionRate,
                                          _candidateRandomizationRate,
-                                         _chanceLoserOverriddenByWinner,
+                                         _candidateRandomEvolutionRate,
                                          _chanceOnlyMoveOperator);
     }
 
     private void ReplaceWorseEquationWithBetterEquationAndEvolve(Random random,
                                                                  EquationValues equationValues,
-                                                                 ProblemEquation betterEquation,
-                                                                 SlimEquationScore betterEquationScore,
-                                                                 ProblemEquation worseEquation)
+                                                                 ref EquationWithScore betterEquationWithScore,
+                                                                 ref EquationWithScore worseEquationWithScore)
     {
-        worseEquation.CopyFrom(betterEquation);
-        Evolve(random, equationValues, worseEquation);
+        worseEquationWithScore.Equation.CopyFrom(betterEquationWithScore.Equation);
+        worseEquationWithScore.Score = betterEquationWithScore.Score;
 
-        if (betterEquationScore < _bestScore)
+        Evolve(random, equationValues, ref worseEquationWithScore);
+
+        if (betterEquationWithScore.Score < _bestScore)
         {
-            _bestScore = _fullScorer.ToFullScore(betterEquationScore, equationValues, betterEquation);
-            _bestEquation = betterEquation.Copy();
+            _bestScore = _fullScorer.ToFullScore(betterEquationWithScore.Score.Value, equationValues, betterEquationWithScore.Equation);
+            _bestEquation = betterEquationWithScore.Equation.Copy();
         }
     }
 
-    private void Evolve(Random random, EquationValues equationValues, ProblemEquation equation)
+    private void Evolve(Random random, EquationValues equationValues, ref EquationWithScore equationWithScore)
     {
         if (random.NextSingle() < _chanceOnlyMoveOperator)
         {
             _nandMover.MoveRandomNandOperator(random,
                                               equationValues.StaticResultSize,
-                                              equation.OutputSize,
-                                              equation.NandOperators,
-                                              equation.OperatorsUsed);
+                                              equationWithScore.Equation.OutputSize,
+                                              equationWithScore.Equation.NandOperators,
+                                              equationWithScore.Equation.OperatorsUsed);
         }
         else
         {
             int operatorCountToRandomize = (int)(_operatorCount * _candidateRandomizationRate);
-            _nandChanger.RandomizeSmallPartOfEquation(random, equation, equationValues, operatorCountToRandomize);
+            if (_nandChanger.RandomizeSmallPartOfEquation(random, equationWithScore.Equation, equationValues, operatorCountToRandomize))
+            {
+                equationWithScore.Score = null;
+            }
         }
     }
+
+    private record struct EquationWithScore(ProblemEquation Equation, SlimEquationScore? Score);
 }
