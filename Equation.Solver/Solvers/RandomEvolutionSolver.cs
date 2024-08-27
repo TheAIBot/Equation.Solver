@@ -120,7 +120,8 @@ internal sealed class RandomEvolutionSolver : ISolver
                         _nandMover.MoveRandomNandOperator(random,
                                                           equationValues.StaticResultSize,
                                                           equations[i].OutputSize,
-                                                          equations[i].NandOperators);
+                                                          equations[i].NandOperators,
+                                                          equations[i].OperatorsUsed);
                     }
                     else
                     {

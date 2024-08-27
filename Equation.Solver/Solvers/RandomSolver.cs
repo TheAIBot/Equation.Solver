@@ -75,5 +75,7 @@ internal sealed class RandomSolver : ISolver
             int rightValueIndex = random.Next(0, staticResultSize + i);
             operators[i] = new NandOperator(leftValueIndex, rightValueIndex);
         }
+
+        equation.RecalculateOperatorsUsed(staticResultSize);
     }
 }
