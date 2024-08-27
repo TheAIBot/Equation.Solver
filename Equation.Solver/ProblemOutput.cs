@@ -7,25 +7,26 @@ internal readonly record struct ProblemOutput(Vector256<int>[] Outputs, Vector25
 {
     public int Count => Outputs.Length;
 
-    public int CalculateDifference(ReadOnlySpan<Vector256<int>> compareTo)
+    public void CalculateDifference(ReadOnlySpan<Vector256<int>> compareTo, Span<int> bitErrors)
     {
         if (compareTo.Length != Outputs.Length)
         {
-            throw new ArgumentException($"Must be the same length as {Outputs}", nameof(compareTo));
+            throw new ArgumentException($"Must be the same length as {nameof(Outputs)}", nameof(compareTo));
+        }
+        if (bitErrors.Length != Outputs.Length)
+        {
+            throw new ArgumentException($"Must be the same length as {nameof(Outputs)}", nameof(bitErrors));
         }
 
-        int difference = 0;
         for (int i = 0; i < Outputs.Length; i++)
         {
             Vector256<int> expected = Outputs[i];
             Vector256<int> actual = compareTo[i] & MaskBitsUsed;
             Vector256<ulong> diff = (expected ^ actual).AsUInt64();
-            difference += BitOperations.PopCount(diff.GetElement(0)) +
-                          BitOperations.PopCount(diff.GetElement(1)) +
-                          BitOperations.PopCount(diff.GetElement(2)) +
-                          BitOperations.PopCount(diff.GetElement(3));
+            bitErrors[i] += BitOperations.PopCount(diff.GetElement(0)) +
+                            BitOperations.PopCount(diff.GetElement(1)) +
+                            BitOperations.PopCount(diff.GetElement(2)) +
+                            BitOperations.PopCount(diff.GetElement(3));
         }
-
-        return difference;
     }
 }
