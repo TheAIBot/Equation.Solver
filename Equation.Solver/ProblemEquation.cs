@@ -9,6 +9,7 @@ internal sealed class ProblemEquation
     private readonly int _outputSize;
 
     public Span<bool> OperatorsUsed => _operatorsUsed;
+    public int OperatorsUsedCount => _operatorsUsed.Count(x => x);
     public Span<NandOperator> NandOperators => _nandOperators;
     public int OutputSize => _outputSize;
 
@@ -44,11 +45,23 @@ internal sealed class ProblemEquation
 
     public void RecalculateOperatorsUsed(int staticResultSize)
     {
-        Span<NandOperator> operators = _nandOperators;
         Span<bool> operatorsUsed = _operatorsUsed;
         operatorsUsed.Fill(false);
         operatorsUsed.Slice(operatorsUsed.Length - OutputSize, OutputSize).Fill(true);
 
+        CalculateRemainingOperatorsUsed(staticResultSize, _nandOperators, operatorsUsed);
+    }
+
+    /// <summary>
+    /// Given some operators are used at the end of the <paramref name="operatorsUsed"/> array
+    /// this will then mark all other used operators.
+    /// </summary>
+    /// <returns>Number of operators used.</returns>
+    internal static int CalculateRemainingOperatorsUsed(int staticResultSize,
+                                                        ReadOnlySpan<NandOperator> operators,
+                                                        Span<bool> operatorsUsed)
+    {
+        int operatorsUsedCount = 0;
         for (int i = operators.Length - 1; i >= 0; i--)
         {
             if (!operatorsUsed[i])
@@ -56,6 +69,7 @@ internal sealed class ProblemEquation
                 continue;
             }
 
+            operatorsUsedCount++;
             NandOperator nandOperator = operators[i];
             if (nandOperator.LeftValueIndex >= staticResultSize)
             {
@@ -67,6 +81,8 @@ internal sealed class ProblemEquation
                 operatorsUsed[nandOperator.RightValueIndex - staticResultSize] = true;
             }
         }
+
+        return operatorsUsedCount;
     }
 
     public ProblemEquation Copy()
