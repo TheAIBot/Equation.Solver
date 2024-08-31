@@ -13,7 +13,7 @@ internal sealed class NandMover
         _nandsUsedMoveConstraints = new NandIndexMoveConstraint[_nandMoveConstraints.Length];
     }
 
-    public void MoveRandomNandOperator(Random random, int staticResultSize, int outputCount, Span<NandOperator> operators, Span<bool> operatorsUsed)
+    public void MoveRandomNandOperator(Random random, int staticResultSize, int outputCount, Span<NandOperator> operators, FastResetBoolArray operatorsUsed)
     {
         Span<NandIndexMoveConstraint> nandIndexMoveConstraints = GetMoveConstraintsOfAllUsedNands(staticResultSize, outputCount, operators, operatorsUsed);
         if (nandIndexMoveConstraints.Length == 0)
@@ -25,7 +25,7 @@ internal sealed class NandMover
         TryMoveOperator(random, staticResultSize, operators, nandIndexMoveConstraints, moveConstraintToMove, operatorsUsed);
     }
 
-    private Span<NandIndexMoveConstraint> GetMoveConstraintsOfAllUsedNands(int staticResultSize, int outputCount, ReadOnlySpan<NandOperator> nandOperators, ReadOnlySpan<bool> operatorsUsed)
+    private Span<NandIndexMoveConstraint> GetMoveConstraintsOfAllUsedNands(int staticResultSize, int outputCount, ReadOnlySpan<NandOperator> nandOperators, FastResetBoolArray operatorsUsed)
     {
         var nandMoveConstraints = _nandMoveConstraints;
         Array.Fill(nandMoveConstraints, new NandMoveConstraint(int.MinValue, int.MaxValue));
@@ -85,7 +85,7 @@ internal sealed class NandMover
                                         Span<NandOperator> operators,
                                         Span<NandIndexMoveConstraint> nandIndexMoveConstraints,
                                         int moveConstraintToMove,
-                                        Span<bool> operatorsUsed)
+                                        FastResetBoolArray operatorsUsed)
     {
         NandIndexMoveConstraint moveConstraint = nandIndexMoveConstraints[moveConstraintToMove];
         int actualMinMoveIndex = moveConstraint.MoveConstraint.MaxExclusiveLowerBound + 1;

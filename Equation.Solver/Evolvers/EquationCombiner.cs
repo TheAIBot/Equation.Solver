@@ -2,14 +2,14 @@
 
 internal sealed class EquationCombiner
 {
-    private readonly bool[] _selectedOutputsOperatorsUsed;
-    private readonly bool[] _outputSelection;
+    private FastResetBoolArray _selectedOutputsOperatorsUsed;
+    private FastResetBoolArray _outputSelection;
     private readonly int[] _oldToNewIndex;
 
     public EquationCombiner(int operatorCount, int outputCount)
     {
-        _selectedOutputsOperatorsUsed = new bool[operatorCount];
-        _outputSelection = new bool[outputCount];
+        _selectedOutputsOperatorsUsed = new FastResetBoolArray(operatorCount);
+        _outputSelection = new FastResetBoolArray(outputCount);
         _oldToNewIndex = new int[_selectedOutputsOperatorsUsed.Length];
     }
 
@@ -33,28 +33,26 @@ internal sealed class EquationCombiner
             return false;
         }
 
-        bool[] selectedOutputsOperatorsUsed = _selectedOutputsOperatorsUsed;
-        bool[] outputSelection = _outputSelection;
         int[] oldToNewIndex = _oldToNewIndex;
-        Array.Clear(selectedOutputsOperatorsUsed);
-        Array.Clear(outputSelection);
+        _selectedOutputsOperatorsUsed.Clear();
+        _outputSelection.Clear();
         Array.Clear(oldToNewIndex);
 
 
-        for (int i = 0; i < outputSelection.Length; i++)
+        for (int i = 0; i < _outputSelection.Length; i++)
         {
-            outputSelection[i] = random.Next(0, 2) == 1;
+            _outputSelection[i] = random.Next(0, 2) == 1;
         }
 
-        int nonOuputOperatorCount = CalculateOutputOperatorsUsed(staticResultSize, parentA, selectedOutputsOperatorsUsed, outputSelection, true);
+        int nonOuputOperatorCount = CalculateOutputOperatorsUsed(staticResultSize, parentA, _selectedOutputsOperatorsUsed, _outputSelection, true);
 
         int newNandIndex = 0;
-        newNandIndex = CopyUsedOperatorsFromParentToChild(staticResultSize, parentA, child, selectedOutputsOperatorsUsed, outputSelection, oldToNewIndex, newNandIndex);
+        newNandIndex = CopyUsedOperatorsFromParentToChild(staticResultSize, parentA, child, _selectedOutputsOperatorsUsed, _outputSelection, oldToNewIndex, newNandIndex);
 
         Array.Clear(oldToNewIndex);
-        Array.Clear(selectedOutputsOperatorsUsed);
-        nonOuputOperatorCount = CalculateOutputOperatorsUsed(staticResultSize, parentB, selectedOutputsOperatorsUsed, outputSelection, false);
-        newNandIndex = CopyUsedOperatorsFromParentToChild(staticResultSize, parentB, child, selectedOutputsOperatorsUsed, outputSelection, oldToNewIndex, newNandIndex);
+        _selectedOutputsOperatorsUsed.Clear();
+        nonOuputOperatorCount = CalculateOutputOperatorsUsed(staticResultSize, parentB, _selectedOutputsOperatorsUsed, _outputSelection, false);
+        newNandIndex = CopyUsedOperatorsFromParentToChild(staticResultSize, parentB, child, _selectedOutputsOperatorsUsed, _outputSelection, oldToNewIndex, newNandIndex);
 
         child.RecalculateOperatorsUsed(staticResultSize);
         return true;
@@ -62,8 +60,8 @@ internal sealed class EquationCombiner
 
     private static int CalculateOutputOperatorsUsed(int staticResultSize,
                                                     ProblemEquation parentA,
-                                                    bool[] selectedOutputsOperatorsUsed,
-                                                    bool[] outputSelection,
+                                                    FastResetBoolArray selectedOutputsOperatorsUsed,
+                                                    FastResetBoolArray outputSelection,
                                                     bool valueSignalsUse)
     {
         for (int i = 0; i < parentA.OutputSize; i++)
@@ -83,8 +81,8 @@ internal sealed class EquationCombiner
     private static int CopyUsedOperatorsFromParentToChild(int staticResultSize,
                                                       ProblemEquation parent,
                                                       ProblemEquation child,
-                                                      bool[] selectedOutputsOperatorsUsed,
-                                                      bool[] outputSelection,
+                                                      FastResetBoolArray selectedOutputsOperatorsUsed,
+                                                      FastResetBoolArray outputSelection,
                                                       int[] oldToNewIndex,
                                                       int newNandIndex)
     {
