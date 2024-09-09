@@ -133,6 +133,7 @@ public sealed class ProblemEquationTest
         {
             equation.NandOperators[i] = operators[i];
         }
+        equation.RecalculateOperatorsUsed(equationValues.StaticResultSize);
 
         return new ProblemParts(equation, equationValues, examples);
     }
