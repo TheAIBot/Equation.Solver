@@ -40,6 +40,16 @@ internal struct FastResetBoolArray
         otherArray._isTrueValue = _isTrueValue;
     }
 
+    public void CopyTo(bool[] array)
+    {
+        ArgumentOutOfRangeException.ThrowIfNotEqual(array.Length, _values.Length);
+
+        for (int i = 0; i < _values.Length; i++)
+        {
+            array[i] = _values[i] == _isTrueValue;
+        }
+    }
+
     public void Clear()
     {
         // Clearing is efficient because we can just change the

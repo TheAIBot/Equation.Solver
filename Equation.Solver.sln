@@ -7,6 +7,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Equation.Solver", "Equation
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Equation.Solver.UnitTests", "Equation.Solver.UnitTests\Equation.Solver.UnitTests.csproj", "{629B36BE-BCFE-4CDE-B2E8-63357340F861}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Equation.Solver.Tests.Utilities", "Equation.Solver.Tests.Utilities\Equation.Solver.Tests.Utilities.csproj", "{6E984E35-1127-4018-B2FB-8F98A972F7F9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Equation.Solver.FuzzyTests", "Equation.Solver.FuzzyTests\Equation.Solver.FuzzyTests.csproj", "{6D2292AD-B3D5-4ED9-8C80-95969B9D46C4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +25,14 @@ Global
 		{629B36BE-BCFE-4CDE-B2E8-63357340F861}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{629B36BE-BCFE-4CDE-B2E8-63357340F861}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{629B36BE-BCFE-4CDE-B2E8-63357340F861}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6E984E35-1127-4018-B2FB-8F98A972F7F9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6E984E35-1127-4018-B2FB-8F98A972F7F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6E984E35-1127-4018-B2FB-8F98A972F7F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6E984E35-1127-4018-B2FB-8F98A972F7F9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6D2292AD-B3D5-4ED9-8C80-95969B9D46C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D2292AD-B3D5-4ED9-8C80-95969B9D46C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D2292AD-B3D5-4ED9-8C80-95969B9D46C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D2292AD-B3D5-4ED9-8C80-95969B9D46C4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

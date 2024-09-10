@@ -8,7 +8,7 @@ internal sealed class ProblemEquation
     private readonly NandOperator[] _nandOperators;
     private readonly int _outputSize;
 
-    public FastResetBoolArray OperatorsUsed => _operatorsUsed;
+    public ref FastResetBoolArray OperatorsUsed => ref _operatorsUsed;
     public int OperatorsUsedCount => _operatorsUsed.TrueCount;
     public Span<NandOperator> NandOperators => _nandOperators;
     public int OutputSize => _outputSize;

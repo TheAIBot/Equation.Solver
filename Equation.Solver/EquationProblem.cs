@@ -43,4 +43,23 @@ internal sealed class EquationProblem
             example.Output.CalculateDifference(equationResult, bitErrors);
         }
     }
+
+    public Vector256<int>[] GetEquationResults(ProblemEquation equation, EquationValues equationValues)
+    {
+        Vector256<int>[] outputResults = new Vector256<int>[_examples.Length * equation.OutputSize];
+
+        int outputResultIndex = 0;
+        for (int i = 0; i < _examples.Length; i++)
+        {
+            ProblemExample example = _examples[i];
+            equationValues.SetParameters(example.Input);
+            ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues);
+            for (int z = 0; z < equationResult.Length; z++)
+            {
+                outputResults[outputResultIndex++] = equationResult[z];
+            }
+        }
+
+        return outputResults;
+    }
 }

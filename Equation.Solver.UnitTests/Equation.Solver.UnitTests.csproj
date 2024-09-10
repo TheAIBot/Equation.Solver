@@ -26,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Equation.Solver.Tests.Utilities\Equation.Solver.Tests.Utilities.csproj" />
     <ProjectReference Include="..\Equation.Solver\Equation.Solver.csproj" />
   </ItemGroup>
 
