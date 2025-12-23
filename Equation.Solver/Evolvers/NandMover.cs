@@ -7,25 +7,25 @@ internal sealed class NandMover
     private readonly NandMoveConstraint[] _nandMoveConstraints;
     private readonly NandIndexMoveConstraint[] _nandsUsedMoveConstraints;
 
-    public NandMover(int staticResultSize, int operatorCount)
+    public NandMover(int inputParameterCount, int operatorCount)
     {
-        _nandMoveConstraints = new NandMoveConstraint[operatorCount + staticResultSize];
+        _nandMoveConstraints = new NandMoveConstraint[operatorCount + inputParameterCount];
         _nandsUsedMoveConstraints = new NandIndexMoveConstraint[_nandMoveConstraints.Length];
     }
 
-    public void MoveRandomNandOperator(Random random, int staticResultSize, int outputCount, Span<NandOperator> operators, FastResetBoolArray operatorsUsed)
+    public void MoveRandomNandOperator(Random random, int inputParameterCount, int outputCount, Span<NandOperator> operators, FastResetBoolArray operatorsUsed)
     {
-        Span<NandIndexMoveConstraint> nandIndexMoveConstraints = GetMoveConstraintsOfAllUsedNands(staticResultSize, outputCount, operators, operatorsUsed);
+        Span<NandIndexMoveConstraint> nandIndexMoveConstraints = GetMoveConstraintsOfAllUsedNands(inputParameterCount, outputCount, operators, operatorsUsed);
         if (nandIndexMoveConstraints.Length == 0)
         {
             return;
         }
 
         int moveConstraintToMove = random.Next(nandIndexMoveConstraints.Length);
-        TryMoveOperator(random, staticResultSize, operators, nandIndexMoveConstraints, moveConstraintToMove, operatorsUsed);
+        TryMoveOperator(random, inputParameterCount, operators, nandIndexMoveConstraints, moveConstraintToMove, operatorsUsed);
     }
 
-    private Span<NandIndexMoveConstraint> GetMoveConstraintsOfAllUsedNands(int staticResultSize, int outputCount, ReadOnlySpan<NandOperator> nandOperators, FastResetBoolArray operatorsUsed)
+    private Span<NandIndexMoveConstraint> GetMoveConstraintsOfAllUsedNands(int inputParameterCount, int outputCount, ReadOnlySpan<NandOperator> nandOperators, FastResetBoolArray operatorsUsed)
     {
         var nandMoveConstraints = _nandMoveConstraints;
         Array.Fill(nandMoveConstraints, new NandMoveConstraint(int.MinValue, int.MaxValue));
@@ -38,11 +38,11 @@ internal sealed class NandMover
             }
 
             nodesUsedCount++;
-            AddIndexesToStack(staticResultSize, nandOperators[i], nandMoveConstraints);
+            AddIndexesToStack(inputParameterCount, nandOperators[i], nandMoveConstraints);
 
             NandOperator nandOperator = nandOperators[i];
             // Calculation goes from left to right so can't move left of operator  value it uses
-            nandMoveConstraints[i + staticResultSize].MaxExclusiveLowerBound = Math.Max(nandOperator.LeftValueIndex, nandOperator.RightValueIndex);
+            nandMoveConstraints[i + inputParameterCount].MaxExclusiveLowerBound = Math.Max(nandOperator.LeftValueIndex, nandOperator.RightValueIndex);
         }
 
         // Output nands can not be moved
@@ -50,7 +50,7 @@ internal sealed class NandMover
         int nodeIndexesUsedFreeIndex = 0;
         for (int i = 0; i < nandMoveConstraints.Length - outputCount; i++)
         {
-            if (i >= staticResultSize && operatorsUsed[i - staticResultSize])
+            if (i >= inputParameterCount && operatorsUsed[i - inputParameterCount])
             {
                 nandsUsedMoveConstraints[nodeIndexesUsedFreeIndex++] = new NandIndexMoveConstraint(i, nandMoveConstraints[i]);
             }
@@ -59,29 +59,29 @@ internal sealed class NandMover
         return nandsUsedMoveConstraints;
     }
 
-    private static void AddIndexesToStack(int staticResultSize, NandOperator nandOperator, NandMoveConstraint[] nandMoveConstraints)
+    private static void AddIndexesToStack(int inputParameterCount, NandOperator nandOperator, NandMoveConstraint[] nandMoveConstraints)
     {
-        int leftIndex = nandOperator.LeftValueIndex - staticResultSize;
+        int leftIndex = nandOperator.LeftValueIndex - inputParameterCount;
         if (leftIndex >= 0)
         {
-            AddOrUpdateMovConstraint(staticResultSize, leftIndex, nandMoveConstraints);
+            AddOrUpdateMovConstraint(inputParameterCount, leftIndex, nandMoveConstraints);
         }
 
-        int rightIndex = nandOperator.RightValueIndex - staticResultSize;
+        int rightIndex = nandOperator.RightValueIndex - inputParameterCount;
         if (rightIndex >= 0)
         {
-            AddOrUpdateMovConstraint(staticResultSize, rightIndex, nandMoveConstraints);
+            AddOrUpdateMovConstraint(inputParameterCount, rightIndex, nandMoveConstraints);
         }
     }
 
-    private static void AddOrUpdateMovConstraint(int staticResultSize, int nandOperatorIndex, NandMoveConstraint[] nandMoveConstraints)
+    private static void AddOrUpdateMovConstraint(int inputParameterCount, int nandOperatorIndex, NandMoveConstraint[] nandMoveConstraints)
     {
         // Calculation goes from left to right so operator can never move beyond any operator that uses it
-        nandMoveConstraints[nandOperatorIndex + staticResultSize].MinExclusiveUpperBound = Math.Min(nandMoveConstraints[nandOperatorIndex + staticResultSize].MinExclusiveUpperBound, nandOperatorIndex + staticResultSize);
+        nandMoveConstraints[nandOperatorIndex + inputParameterCount].MinExclusiveUpperBound = Math.Min(nandMoveConstraints[nandOperatorIndex + inputParameterCount].MinExclusiveUpperBound, nandOperatorIndex + inputParameterCount);
     }
 
     private static void TryMoveOperator(Random random,
-                                        int staticResultSize,
+                                        int inputParameterCount,
                                         Span<NandOperator> operators,
                                         Span<NandIndexMoveConstraint> nandIndexMoveConstraints,
                                         int moveConstraintToMove,
@@ -90,7 +90,7 @@ internal sealed class NandMover
         NandIndexMoveConstraint moveConstraint = nandIndexMoveConstraints[moveConstraintToMove];
         int actualMinMoveIndex = moveConstraint.MoveConstraint.MaxExclusiveLowerBound + 1;
         // Not allowed to move into parameters as that is not operator space
-        actualMinMoveIndex = Math.Max(actualMinMoveIndex, staticResultSize);
+        actualMinMoveIndex = Math.Max(actualMinMoveIndex, inputParameterCount);
 
         int actualMaxMoveIndex = moveConstraint.MoveConstraint.MinExclusiveUpperBound - 1;
 
@@ -108,7 +108,7 @@ internal sealed class NandMover
         // and reduces the possible positions accordingly.
         for (int i = actualMinMoveIndex; i <= actualMaxMoveIndex; i++)
         {
-            if (operatorsUsed[i - staticResultSize])
+            if (operatorsUsed[i - inputParameterCount])
             {
                 possiblePositions--;
             }
@@ -125,26 +125,26 @@ internal sealed class NandMover
         int moveTo = -1;
         for (int i = actualMinMoveIndex; i <= actualMaxMoveIndex; i++)
         {
-            if (!operatorsUsed[i - staticResultSize])
+            if (!operatorsUsed[i - inputParameterCount])
             {
                 if (moveableIndex-- == 0)
                 {
                     moveTo = i;
-                    operators[moveTo - staticResultSize] = operators[moveFrom - staticResultSize];
+                    operators[moveTo - inputParameterCount] = operators[moveFrom - inputParameterCount];
 
-                    operatorsUsed[moveFrom - staticResultSize] = false;
-                    operatorsUsed[moveTo - staticResultSize] = true;
+                    operatorsUsed[moveFrom - inputParameterCount] = false;
+                    operatorsUsed[moveTo - inputParameterCount] = true;
                     break;
                 }
             }
         }
 
         Debug.Assert(moveTo != -1, "Logic for moveable space is invalid. The expected amount of available space was not found.");
-        Debug.Assert(moveTo < operators.Length + staticResultSize);
+        Debug.Assert(moveTo < operators.Length + inputParameterCount);
 
         // Need to update all operators that points to the move operator
         // so they now use the operators new index
-        for (int i = actualMaxMoveIndex - staticResultSize; i < operators.Length; i++)
+        for (int i = actualMaxMoveIndex - inputParameterCount; i < operators.Length; i++)
         {
             if (operators[i].LeftValueIndex == moveFrom)
             {

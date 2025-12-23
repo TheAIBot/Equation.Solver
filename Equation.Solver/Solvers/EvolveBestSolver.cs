@@ -53,8 +53,8 @@ internal sealed class EvolveBestSolver : ISolver
 
                     int operatorIndex = random.Next(0, equation.NandOperators.Length);
                     NandOperator copyBeforeChange = equation.NandOperators[operatorIndex];
-                    int leftValueIndex = random.Next(0, equationValues.StaticResultSize + operatorIndex);
-                    int rightValueIndex = random.Next(0, equationValues.StaticResultSize + operatorIndex);
+                    int leftValueIndex = random.Next(0, equationValues.InputParameterCount + operatorIndex);
+                    int rightValueIndex = random.Next(0, equationValues.InputParameterCount + operatorIndex);
                     equation.NandOperators[operatorIndex] = new NandOperator(leftValueIndex, rightValueIndex);
 
                     SlimEquationScore score = problem.EvaluateEquation(equation, equationValues);

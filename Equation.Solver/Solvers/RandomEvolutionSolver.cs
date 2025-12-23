@@ -150,7 +150,7 @@ internal sealed class RandomEvolutionSolver : ISolver
         if (random.NextSingle() < _chanceOnlyMoveOperator)
         {
             _nandMover.MoveRandomNandOperator(random,
-                                              equationValues.StaticResultSize,
+                                              equationValues.InputParameterCount,
                                               equationWithScore.Equation.OutputSize,
                                               equationWithScore.Equation.NandOperators,
                                               equationWithScore.Equation.OperatorsUsed);

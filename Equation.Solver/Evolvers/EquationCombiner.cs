@@ -14,7 +14,7 @@ internal sealed class EquationCombiner
     }
 
     public bool CombineEquations(Random random,
-                                 int staticResultSize,
+                                 int inputParameterCount,
                                  ProblemEquation parentA,
                                  ProblemEquation parentB,
                                  ProblemEquation child)
@@ -44,21 +44,21 @@ internal sealed class EquationCombiner
             _outputSelection[i] = random.Next(0, 2) == 1;
         }
 
-        int nonOuputOperatorCount = CalculateOutputOperatorsUsed(staticResultSize, parentA, _selectedOutputsOperatorsUsed, _outputSelection, true);
+        int nonOuputOperatorCount = CalculateOutputOperatorsUsed(inputParameterCount, parentA, _selectedOutputsOperatorsUsed, _outputSelection, true);
 
         int newNandIndex = 0;
-        newNandIndex = CopyUsedOperatorsFromParentToChild(staticResultSize, parentA, child, _selectedOutputsOperatorsUsed, _outputSelection, oldToNewIndex, newNandIndex);
+        newNandIndex = CopyUsedOperatorsFromParentToChild(inputParameterCount, parentA, child, _selectedOutputsOperatorsUsed, _outputSelection, oldToNewIndex, newNandIndex);
 
         Array.Clear(oldToNewIndex);
         _selectedOutputsOperatorsUsed.Clear();
-        nonOuputOperatorCount = CalculateOutputOperatorsUsed(staticResultSize, parentB, _selectedOutputsOperatorsUsed, _outputSelection, false);
-        newNandIndex = CopyUsedOperatorsFromParentToChild(staticResultSize, parentB, child, _selectedOutputsOperatorsUsed, _outputSelection, oldToNewIndex, newNandIndex);
+        nonOuputOperatorCount = CalculateOutputOperatorsUsed(inputParameterCount, parentB, _selectedOutputsOperatorsUsed, _outputSelection, false);
+        newNandIndex = CopyUsedOperatorsFromParentToChild(inputParameterCount, parentB, child, _selectedOutputsOperatorsUsed, _outputSelection, oldToNewIndex, newNandIndex);
 
-        child.RecalculateOperatorsUsed(staticResultSize);
+        child.RecalculateOperatorsUsed(inputParameterCount);
         return true;
     }
 
-    private static int CalculateOutputOperatorsUsed(int staticResultSize,
+    private static int CalculateOutputOperatorsUsed(int inputParameterCount,
                                                     ProblemEquation parentA,
                                                     FastResetBoolArray selectedOutputsOperatorsUsed,
                                                     FastResetBoolArray outputSelection,
@@ -74,17 +74,17 @@ internal sealed class EquationCombiner
             selectedOutputsOperatorsUsed[selectedOutputsOperatorsUsed.Length - parentA.OutputSize + i] = true;
         }
 
-        int totalOperatorsUsed = ProblemEquation.CalculateRemainingOperatorsUsed(staticResultSize, parentA.NandOperators, selectedOutputsOperatorsUsed);
+        int totalOperatorsUsed = ProblemEquation.CalculateRemainingOperatorsUsed(inputParameterCount, parentA.NandOperators, selectedOutputsOperatorsUsed);
         return totalOperatorsUsed - outputSelection.Length;
     }
 
-    private static int CopyUsedOperatorsFromParentToChild(int staticResultSize,
-                                                      ProblemEquation parent,
-                                                      ProblemEquation child,
-                                                      FastResetBoolArray selectedOutputsOperatorsUsed,
-                                                      FastResetBoolArray outputSelection,
-                                                      int[] oldToNewIndex,
-                                                      int newNandIndex)
+    private static int CopyUsedOperatorsFromParentToChild(int inputParameterCount,
+                                                          ProblemEquation parent,
+                                                          ProblemEquation child,
+                                                          FastResetBoolArray selectedOutputsOperatorsUsed,
+                                                          FastResetBoolArray outputSelection,
+                                                          int[] oldToNewIndex,
+                                                          int newNandIndex)
     {
         for (int i = 0; i < selectedOutputsOperatorsUsed.Length - outputSelection.Length; i++)
         {
@@ -97,14 +97,14 @@ internal sealed class EquationCombiner
             oldToNewIndex[i] = newNandIndex;
 
 
-            if (nandOperator.LeftValueIndex >= staticResultSize)
+            if (nandOperator.LeftValueIndex >= inputParameterCount)
             {
-                nandOperator = new NandOperator(oldToNewIndex[nandOperator.LeftValueIndex - staticResultSize] + staticResultSize, nandOperator.RightValueIndex);
+                nandOperator = new NandOperator(oldToNewIndex[nandOperator.LeftValueIndex - inputParameterCount] + inputParameterCount, nandOperator.RightValueIndex);
             }
 
-            if (nandOperator.RightValueIndex >= staticResultSize)
+            if (nandOperator.RightValueIndex >= inputParameterCount)
             {
-                nandOperator = new NandOperator(nandOperator.LeftValueIndex, oldToNewIndex[nandOperator.RightValueIndex - staticResultSize] + staticResultSize);
+                nandOperator = new NandOperator(nandOperator.LeftValueIndex, oldToNewIndex[nandOperator.RightValueIndex - inputParameterCount] + inputParameterCount);
             }
 
             child.NandOperators[newNandIndex] = nandOperator;
@@ -123,14 +123,14 @@ internal sealed class EquationCombiner
             oldToNewIndex[operatorIndex] = operatorIndex;
 
 
-            if (nandOperator.LeftValueIndex >= staticResultSize)
+            if (nandOperator.LeftValueIndex >= inputParameterCount)
             {
-                nandOperator = new NandOperator(oldToNewIndex[nandOperator.LeftValueIndex - staticResultSize] + staticResultSize, nandOperator.RightValueIndex);
+                nandOperator = new NandOperator(oldToNewIndex[nandOperator.LeftValueIndex - inputParameterCount] + inputParameterCount, nandOperator.RightValueIndex);
             }
 
-            if (nandOperator.RightValueIndex >= staticResultSize)
+            if (nandOperator.RightValueIndex >= inputParameterCount)
             {
-                nandOperator = new NandOperator(nandOperator.LeftValueIndex, oldToNewIndex[nandOperator.RightValueIndex - staticResultSize] + staticResultSize);
+                nandOperator = new NandOperator(nandOperator.LeftValueIndex, oldToNewIndex[nandOperator.RightValueIndex - inputParameterCount] + inputParameterCount);
             }
 
             child.NandOperators[operatorIndex] = nandOperator;

@@ -5,20 +5,18 @@ namespace Equation.Solver;
 
 internal unsafe sealed class EquationValues
 {
-    public readonly Vector256<int>* AllValues;
-    public readonly int _size;
     public readonly Vector256<int>* OperatorResults;
+    public readonly int _size;
     private readonly int _parameterCount;
 
-    public int StaticResultSize => _parameterCount;
+    public int InputParameterCount => _parameterCount;
 
     public EquationValues(int parameterCount, int operatorCount)
     {
-        _size = parameterCount + operatorCount;
+        _size = operatorCount;
         _parameterCount = parameterCount;
         // For vectorized code, aligned load/stores can be important in order to achieve optimal performance.
         // That's why we align this array by the vectors size so only aligned loads/stores are done.
-        AllValues = (Vector256<int>*)NativeMemory.AlignedAlloc((nuint)(sizeof(Vector256<int>) * _size), (nuint)sizeof(Vector256<int>));
-        OperatorResults = AllValues + parameterCount;
+        OperatorResults = (Vector256<int>*)NativeMemory.AlignedAlloc((nuint)(sizeof(Vector256<int>) * _size), (nuint)sizeof(Vector256<int>));
     }
 }

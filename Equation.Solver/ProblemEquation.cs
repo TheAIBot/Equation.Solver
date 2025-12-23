@@ -1,4 +1,5 @@
-﻿using System.Runtime.Intrinsics;
+﻿using System.Numerics;
+using System.Runtime.Intrinsics;
 
 namespace Equation.Solver;
 
@@ -22,13 +23,16 @@ internal sealed class ProblemEquation
 
     public unsafe ReadOnlySpan<Vector256<int>> Calculate(EquationValues equationValues, ProblemExample example)
     {
-        Vector256<int>* results = equationValues.OperatorResults;
-        int* allValues = (int*)equationValues.AllValues;
-        NandOperator[] nandOperators = _nandOperators;
-        var operatorsUsed = _operatorsUsed;
         int inputCount = example.Input.Count;
+        int* inputs = (int*)example.Input.Inputs;
 
-        int* inputsAsInts = (int*)example.Input.Inputs;
+        Vector256<int>* results = equationValues.OperatorResults;
+        int* allValues = (int*)equationValues.OperatorResults;
+        allValues -= equationValues.InputParameterCount * Vector256<int>.Count;
+
+        NandOperator[] nandOperators = _nandOperators;
+        FastResetBoolArray operatorsUsed = _operatorsUsed;
+
         for (int i = 0; i < nandOperators.Length; i++)
         {
             if (!operatorsUsed[i])
@@ -36,20 +40,20 @@ internal sealed class ProblemEquation
                 continue;
             }
 
-            var result = nandOperators[i].Nand(allValues, inputsAsInts, inputCount);
+            var result = nandOperators[i].Nand(allValues, inputs, inputCount);
             result.StoreAligned((int*)(results + i));
         }
 
 
-        return new Span<Vector256<int>>(((Vector256<int>*)allValues) + (equationValues._size - _outputSize), _outputSize);
+        return new Span<Vector256<int>>(results + equationValues._size - _outputSize, _outputSize);
     }
 
-    public void RecalculateOperatorsUsed(int staticResultSize)
+    public void RecalculateOperatorsUsed(int inputParameterCount)
     {
         _operatorsUsed.Clear();
         _operatorsUsed.SetRangeTrue(_operatorsUsed.Length - OutputSize, OutputSize, true);
 
-        CalculateRemainingOperatorsUsed(staticResultSize, _nandOperators, _operatorsUsed);
+        CalculateRemainingOperatorsUsed(inputParameterCount, _nandOperators, _operatorsUsed);
     }
 
     /// <summary>
@@ -57,7 +61,7 @@ internal sealed class ProblemEquation
     /// this will then mark all other used operators.
     /// </summary>
     /// <returns>Number of operators used.</returns>
-    internal static int CalculateRemainingOperatorsUsed(int staticResultSize,
+    internal static int CalculateRemainingOperatorsUsed(int inputParameterCount,
                                                         ReadOnlySpan<NandOperator> operators,
                                                         FastResetBoolArray operatorsUsed)
     {
@@ -71,14 +75,14 @@ internal sealed class ProblemEquation
 
             operatorsUsedCount++;
             NandOperator nandOperator = operators[i];
-            if (nandOperator.LeftValueIndex >= staticResultSize)
+            if (nandOperator.LeftValueIndex >= inputParameterCount)
             {
-                operatorsUsed[nandOperator.LeftValueIndex - staticResultSize] = true;
+                operatorsUsed[nandOperator.LeftValueIndex - inputParameterCount] = true;
             }
 
-            if (nandOperator.RightValueIndex >= staticResultSize)
+            if (nandOperator.RightValueIndex >= inputParameterCount)
             {
-                operatorsUsed[nandOperator.RightValueIndex - staticResultSize] = true;
+                operatorsUsed[nandOperator.RightValueIndex - inputParameterCount] = true;
             }
         }
 

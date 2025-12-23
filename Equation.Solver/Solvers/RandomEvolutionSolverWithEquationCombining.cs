@@ -141,10 +141,10 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver
                     Array.Sort(familyEquationsWithScore);
 
                     if (!_equationCombiner.CombineEquations(random,
-                                                       equationValues.StaticResultSize,
-                                                       familyEquationsWithScore[0].Equation,
-                                                       familyEquationsWithScore[1].Equation,
-                                                       familyEquationsWithScore[2].Equation))
+                                                            equationValues.InputParameterCount,
+                                                            familyEquationsWithScore[0].Equation,
+                                                            familyEquationsWithScore[1].Equation,
+                                                            familyEquationsWithScore[2].Equation))
                     {
                         continue;
                     }
@@ -208,7 +208,7 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver
         if (random.NextSingle() < _chanceOnlyMoveOperator)
         {
             _nandMover.MoveRandomNandOperator(random,
-                                              equationValues.StaticResultSize,
+                                              equationValues.InputParameterCount,
                                               equationWithScore.Equation.OutputSize,
                                               equationWithScore.Equation.NandOperators,
                                               equationWithScore.Equation.OperatorsUsed);

@@ -33,7 +33,7 @@ public sealed class NandChangerTest
         problemParts.Equation.OperatorsUsed.CopyTo(usedOperatorsAfterChange);
 
         problemParts.Equation.OperatorsUsed.Clear();
-        problemParts.Equation.RecalculateOperatorsUsed(problemParts.EquationValues.StaticResultSize);
+        problemParts.Equation.RecalculateOperatorsUsed(problemParts.EquationValues.InputParameterCount);
         bool[] recalculatedOperatorsUsedAfterChange = new bool[problemParts.Equation.NandOperators.Length];
         problemParts.Equation.OperatorsUsed.CopyTo(recalculatedOperatorsUsedAfterChange);
 

@@ -127,12 +127,12 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
     internal static void RandomizeSmallPartOfEquation(Random random, ProblemEquation equation, EquationValues equationValues, int operatorCountToRandomize)
     {
         Span<NandOperator> operators = equation.NandOperators;
-        int staticResultSize = equationValues.StaticResultSize;
+        int inputParameterCount = equationValues.InputParameterCount;
         for (int i = 0; i < operatorCountToRandomize; i++)
         {
             int operatorIndex = random.Next(0, operators.Length);
-            int leftValueIndex = random.Next(0, staticResultSize + operatorIndex);
-            int rightValueIndex = random.Next(0, staticResultSize + operatorIndex);
+            int leftValueIndex = random.Next(0, inputParameterCount + operatorIndex);
+            int rightValueIndex = random.Next(0, inputParameterCount + operatorIndex);
             operators[operatorIndex] = new NandOperator(leftValueIndex, rightValueIndex);
         }
     }
