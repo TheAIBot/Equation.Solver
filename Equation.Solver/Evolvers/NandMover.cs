@@ -9,7 +9,7 @@ internal sealed class NandMover
 
     public NandMover(int inputParameterCount, int operatorCount)
     {
-        _nandMoveConstraints = new NandMoveConstraint[operatorCount + inputParameterCount];
+        _nandMoveConstraints = new NandMoveConstraint[operatorCount];
         _nandsUsedMoveConstraints = new NandIndexMoveConstraint[_nandMoveConstraints.Length];
     }
 
@@ -42,7 +42,7 @@ internal sealed class NandMover
 
             NandOperator nandOperator = nandOperators[i];
             // Calculation goes from left to right so can't move left of operator  value it uses
-            nandMoveConstraints[i + inputParameterCount].MaxExclusiveLowerBound = Math.Max(nandOperator.LeftValueIndex, nandOperator.RightValueIndex);
+            nandMoveConstraints[i].MaxExclusiveLowerBound = Math.Max(nandOperator.LeftValueIndex, nandOperator.RightValueIndex);
         }
 
         // Output nands can not be moved
@@ -50,7 +50,7 @@ internal sealed class NandMover
         int nodeIndexesUsedFreeIndex = 0;
         for (int i = 0; i < nandMoveConstraints.Length - outputCount; i++)
         {
-            if (i >= inputParameterCount && operatorsUsed[i - inputParameterCount])
+            if (operatorsUsed[i])
             {
                 nandsUsedMoveConstraints[nodeIndexesUsedFreeIndex++] = new NandIndexMoveConstraint(i, nandMoveConstraints[i]);
             }
@@ -61,14 +61,14 @@ internal sealed class NandMover
 
     private static void AddIndexesToStack(int inputParameterCount, NandOperator nandOperator, NandMoveConstraint[] nandMoveConstraints)
     {
-        int leftIndex = nandOperator.LeftValueIndex - inputParameterCount;
-        if (leftIndex >= 0)
+        int leftIndex = nandOperator.LeftValueIndex;
+        if (leftIndex >= inputParameterCount)
         {
             AddOrUpdateMovConstraint(inputParameterCount, leftIndex, nandMoveConstraints);
         }
 
-        int rightIndex = nandOperator.RightValueIndex - inputParameterCount;
-        if (rightIndex >= 0)
+        int rightIndex = nandOperator.RightValueIndex;
+        if (rightIndex >= inputParameterCount)
         {
             AddOrUpdateMovConstraint(inputParameterCount, rightIndex, nandMoveConstraints);
         }
@@ -77,7 +77,7 @@ internal sealed class NandMover
     private static void AddOrUpdateMovConstraint(int inputParameterCount, int nandOperatorIndex, NandMoveConstraint[] nandMoveConstraints)
     {
         // Calculation goes from left to right so operator can never move beyond any operator that uses it
-        nandMoveConstraints[nandOperatorIndex + inputParameterCount].MinExclusiveUpperBound = Math.Min(nandMoveConstraints[nandOperatorIndex + inputParameterCount].MinExclusiveUpperBound, nandOperatorIndex + inputParameterCount);
+        nandMoveConstraints[nandOperatorIndex - inputParameterCount].MinExclusiveUpperBound = Math.Min(nandMoveConstraints[nandOperatorIndex - inputParameterCount].MinExclusiveUpperBound, nandOperatorIndex);
     }
 
     private static void TryMoveOperator(Random random,
@@ -130,9 +130,9 @@ internal sealed class NandMover
                 if (moveableIndex-- == 0)
                 {
                     moveTo = i;
-                    operators[moveTo - inputParameterCount] = operators[moveFrom - inputParameterCount];
+                    operators[moveTo - inputParameterCount] = operators[moveFrom];
 
-                    operatorsUsed[moveFrom - inputParameterCount] = false;
+                    operatorsUsed[moveFrom] = false;
                     operatorsUsed[moveTo - inputParameterCount] = true;
                     break;
                 }
@@ -146,12 +146,12 @@ internal sealed class NandMover
         // so they now use the operators new index
         for (int i = actualMaxMoveIndex - inputParameterCount; i < operators.Length; i++)
         {
-            if (operators[i].LeftValueIndex == moveFrom)
+            if (operators[i].LeftValueIndex == moveFrom + inputParameterCount)
             {
                 operators[i] = new NandOperator(moveTo, operators[i].RightValueIndex);
             }
 
-            if (operators[i].RightValueIndex == moveFrom)
+            if (operators[i].RightValueIndex == moveFrom + inputParameterCount)
             {
                 operators[i] = new NandOperator(operators[i].LeftValueIndex, moveTo);
             }
