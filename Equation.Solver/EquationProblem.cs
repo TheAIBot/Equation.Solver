@@ -6,7 +6,7 @@ namespace Equation.Solver;
 internal sealed class EquationProblem
 {
     private readonly ProblemExample[] _examples;
-    public int ParameterCount => _examples[0].Input.Inputs.Length;
+    public int ParameterCount => _examples[0].Input.Count;
     public int OutputCount => _examples[0].Output.Outputs.Length;
 
     public EquationProblem(ProblemExample[] examples)

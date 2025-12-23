@@ -24,25 +24,20 @@ internal sealed class ProblemEquation
     {
         Vector256<int>* results = equationValues.OperatorResults;
         int* allValues = (int*)equationValues.AllValues;
+        NandOperator[] nandOperators = _nandOperators;
         var operatorsUsed = _operatorsUsed;
         int inputCount = example.Input.Count;
 
-        fixed (Vector256<int>* inputs = example.Input.Inputs)
+        int* inputsAsInts = (int*)example.Input.Inputs;
+        for (int i = 0; i < nandOperators.Length; i++)
         {
-            int* inputsAsInts = (int*)inputs;
-            fixed (NandOperator* operators = _nandOperators)
+            if (!operatorsUsed[i])
             {
-                for (int i = 0; i < _nandOperators.Length; i++)
-                {
-                    if (!operatorsUsed[i])
-                    {
-                        continue;
-                    }
-
-                    var result = _nandOperators[i].Nand(allValues, inputsAsInts, inputCount);
-                    result.StoreAligned((int*)(results + i));
-                }
+                continue;
             }
+
+            var result = nandOperators[i].Nand(allValues, inputsAsInts, inputCount);
+            result.StoreAligned((int*)(results + i));
         }
 
 
