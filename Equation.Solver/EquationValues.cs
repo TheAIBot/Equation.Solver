@@ -21,14 +21,4 @@ internal unsafe sealed class EquationValues
         AllValues = (Vector256<int>*)NativeMemory.AlignedAlloc((nuint)(sizeof(Vector256<int>) * _size), (nuint)sizeof(Vector256<int>));
         OperatorResults = AllValues + parameterCount;
     }
-
-    public void SetParameters(ProblemInput parameters)
-    {
-        if (parameters.Inputs.Length != _parameterCount)
-        {
-            throw new ArgumentOutOfRangeException(nameof(parameters));
-        }
-        var to = new Span<Vector256<int>>(AllValues, _parameterCount);
-        parameters.Inputs.CopyTo(to);
-    }
 }

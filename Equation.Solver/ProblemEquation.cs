@@ -20,25 +20,31 @@ internal sealed class ProblemEquation
         _outputSize = outputSize;
     }
 
-    public unsafe ReadOnlySpan<Vector256<int>> Calculate(EquationValues equationValues)
+    public unsafe ReadOnlySpan<Vector256<int>> Calculate(EquationValues equationValues, ProblemExample example)
     {
         Vector256<int>* results = equationValues.OperatorResults;
         int* allValues = (int*)equationValues.AllValues;
         var operatorsUsed = _operatorsUsed;
+        int inputCount = example.Input.Count;
 
-        fixed (NandOperator* operators = _nandOperators)
+        fixed (Vector256<int>* inputs = example.Input.Inputs)
         {
-            for (int i = 0; i < _nandOperators.Length; i++)
+            int* inputsAsInts = (int*)inputs;
+            fixed (NandOperator* operators = _nandOperators)
             {
-                if (!operatorsUsed[i])
+                for (int i = 0; i < _nandOperators.Length; i++)
                 {
-                    continue;
-                }
+                    if (!operatorsUsed[i])
+                    {
+                        continue;
+                    }
 
-                var result = _nandOperators[i].Nand(allValues);
-                result.StoreAligned((int*)(results + i));
+                    var result = _nandOperators[i].Nand(allValues, inputsAsInts, inputCount);
+                    result.StoreAligned((int*)(results + i));
+                }
             }
         }
+
 
         return new Span<Vector256<int>>(((Vector256<int>*)allValues) + (equationValues._size - _outputSize), _outputSize);
     }

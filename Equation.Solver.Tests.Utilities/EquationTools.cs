@@ -53,7 +53,6 @@ internal static class EquationTools
     {
         var examples = ProblemExample.ConvertToExamples(problemExamples).ToArray();
         var equationValues = new EquationValues(examples[0].Input.Count, operatorCount);
-        equationValues.SetParameters(examples[0].Input);
         var equation = new ProblemEquation(operatorCount, examples[0].Output.Count);
 
         return new ProblemParts(equation, equationValues, examples, new EquationProblem(examples));

@@ -21,10 +21,14 @@ internal readonly struct NandOperator
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe Vector256<int> Nand(int* allValues)
+    public unsafe Vector256<int> Nand(int* allValues, int* inputs, int inputCount)
     {
-        var opLeft = Vector256.LoadAligned(allValues + _leftValueIndex);
-        var opRight = Vector256.LoadAligned(allValues + _rightValueIndex);
+        int* leftInput = _leftValueIndex < inputCount * Vector256<int>.Count ? inputs : allValues;
+        Vector256<int> opLeft = Vector256.Load(leftInput + _leftValueIndex);
+
+        int* rightInput = _rightValueIndex < inputCount * Vector256<int>.Count ? inputs : allValues;
+        Vector256<int> opRight = Vector256.Load(rightInput + _rightValueIndex);
+
         return ~(opLeft & opRight);
     }
 }
