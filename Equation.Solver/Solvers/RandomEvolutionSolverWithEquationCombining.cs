@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Equation.Solver.Solvers;
 
-internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver
+internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChunkSolver
 {
     private readonly int _parameterCount;
     private readonly int _operatorCount;
@@ -24,6 +24,10 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver
     [AllowNull]
     private ProblemEquation _bestEquation;
     private bool _isRunning = false;
+    private Random? _random;
+    private EquationWithScore[]? _equationsWithScore;
+    private EquationValues? _equationValues;
+    private HashSet<int> _usedOperations = [];
 
     public RandomEvolutionSolverWithEquationCombining(int parameterCount,
                                                       int operatorCount,
@@ -63,114 +67,141 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver
         return new SolverReport(_iterationCount, _bestScore.Value, _bestEquation);
     }
 
-    public Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
+    public Task PrepareToSolveAsync(EquationProblem problem, CancellationToken cancellationToken)
+    {
+        _random = new Random();
+        _equationsWithScore = new EquationWithScore[_candidateCount];
+        _equationValues = new EquationValues(problem.ParameterCount, _operatorCount);
+
+        var random = _random;
+        var equationsWithScore = _equationsWithScore;
+        var equationValues = _equationValues;
+        for (int i = 0; i < equationsWithScore.Length; i++)
+        {
+            equationsWithScore[i] = new EquationWithScore(new ProblemEquation(_operatorCount, problem.OutputCount), null);
+            RandomSolver.Randomize(random, equationsWithScore[i].Equation, equationValues);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public async Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
     {
         _isRunning = true;
         try
         {
-            var random = new Random();
-            var equationsWithScore = new EquationWithScore[_candidateCount];
-            var equationValues = new EquationValues(problem.ParameterCount, _operatorCount);
-            for (int i = 0; i < equationsWithScore.Length; i++)
-            {
-                equationsWithScore[i] = new EquationWithScore(new ProblemEquation(_operatorCount, problem.OutputCount), null);
-                RandomSolver.Randomize(random, equationsWithScore[i].Equation, equationValues);
-            }
+            await PrepareToSolveAsync(problem, cancellationToken);
 
-            var familyEquationsWithScore = new EquationWithScore[3];
-
-            var usedOperations = new HashSet<int>();
             _iterationCount = 0;
             _bestScore = EquationScore.MaxScore;
             while (_bestScore?.WrongBits != 0 && !cancellationToken.IsCancellationRequested)
             {
-                int competitionCount = (int)(_candidateCount * _candidateCompetitionRate);
-                for (int i = 0; i < competitionCount; i++)
-                {
-                    int firstCompetitorIndex = random.Next(0, equationsWithScore.Length);
-                    int secondCompetitorIndex = random.Next(0, equationsWithScore.Length);
-                    ref EquationWithScore firstEquationWithScore = ref equationsWithScore[firstCompetitorIndex];
-                    ref EquationWithScore secondEquationWithScore = ref equationsWithScore[secondCompetitorIndex];
-
-                    firstEquationWithScore.Score ??= problem.EvaluateEquation(firstEquationWithScore.Equation, equationValues);
-                    secondEquationWithScore.Score ??= problem.EvaluateEquation(secondEquationWithScore.Equation, equationValues);
-                    if (firstEquationWithScore.Score == secondEquationWithScore.Score)
-                    {
-                        continue;
-                    }
-                    else if (firstEquationWithScore.Score < secondEquationWithScore.Score)
-                    {
-                        ReplaceWorseEquationWithBetterEquationAndEvolve(random, equationValues, ref firstEquationWithScore, ref secondEquationWithScore);
-                    }
-                    else
-                    {
-                        ReplaceWorseEquationWithBetterEquationAndEvolve(random, equationValues, ref secondEquationWithScore, ref firstEquationWithScore);
-                    }
-                }
-                _iterationCount += competitionCount;
-
-                int randomEvolutionCount = (int)(_candidateCount * _candidateRandomEvolutionRate);
-                for (int i = 0; i < randomEvolutionCount; i++)
-                {
-                    int equationIndex = random.Next(equationsWithScore.Length);
-                    ref EquationWithScore equationWithScore = ref equationsWithScore[equationIndex];
-
-                    Evolve(random, equationValues, ref equationWithScore);
-                }
-                _iterationCount += randomEvolutionCount;
-
-                usedOperations.Clear();
-                int randomCombiningCount = (int)(_candidateCount * _candidateRandomCombiningRate);
-                for (int i = 0; i < randomCombiningCount; i++)
-                {
-                    int firstCompetitorIndex = GetUnusedEquation(random, equationsWithScore, usedOperations);
-                    int secondCompetitorIndex = GetUnusedEquation(random, equationsWithScore, usedOperations);
-                    int thirdCompetitorIndex = GetUnusedEquation(random, equationsWithScore, usedOperations);
-
-                    ref EquationWithScore firstEquationWithScore = ref equationsWithScore[firstCompetitorIndex];
-                    ref EquationWithScore secondEquationWithScore = ref equationsWithScore[secondCompetitorIndex];
-                    ref EquationWithScore thirdEquationWithScore = ref equationsWithScore[thirdCompetitorIndex];
-
-                    firstEquationWithScore.Score ??= problem.EvaluateEquation(firstEquationWithScore.Equation, equationValues);
-                    secondEquationWithScore.Score ??= problem.EvaluateEquation(secondEquationWithScore.Equation, equationValues);
-                    thirdEquationWithScore.Score ??= problem.EvaluateEquation(thirdEquationWithScore.Equation, equationValues);
-
-                    familyEquationsWithScore[0] = firstEquationWithScore;
-                    familyEquationsWithScore[1] = secondEquationWithScore;
-                    familyEquationsWithScore[2] = thirdEquationWithScore;
-                    Array.Sort(familyEquationsWithScore);
-
-                    if (!_equationCombiner.CombineEquations(random,
-                                                       equationValues.StaticResultSize,
-                                                       familyEquationsWithScore[0].Equation,
-                                                       familyEquationsWithScore[1].Equation,
-                                                       familyEquationsWithScore[2].Equation))
-                    {
-                        continue;
-                    }
-
-                    if (firstEquationWithScore.Equation == familyEquationsWithScore[2].Equation)
-                    {
-                        firstEquationWithScore.Score = null;
-                    }
-                    else if (secondEquationWithScore.Equation == familyEquationsWithScore[2].Equation)
-                    {
-                        secondEquationWithScore.Score = null;
-                    }
-                    else
-                    {
-                        thirdEquationWithScore.Score = null;
-                    }
-                }
-                _iterationCount += randomCombiningCount;
+                await SolveStepAsync(problem, cancellationToken);
             }
-
-            return Task.CompletedTask;
         }
         finally
         {
             _isRunning = false;
         }
+    }
+
+    public Task SolveStepAsync(EquationProblem problem, CancellationToken cancellationToken)
+    {
+        if (_random == null ||
+            _equationsWithScore == null ||
+            _equationValues == null)
+        {
+            throw new InvalidOperationException();
+        }
+
+        var random = _random;
+        var equationsWithScore = _equationsWithScore;
+        var equationValues = _equationValues;
+        var usedOperations = _usedOperations;
+
+        var familyEquationsWithScore = new EquationWithScore[3];
+
+        int competitionCount = (int)(_candidateCount * _candidateCompetitionRate);
+        for (int i = 0; i < competitionCount; i++)
+        {
+            int firstCompetitorIndex = random.Next(0, equationsWithScore.Length);
+            int secondCompetitorIndex = random.Next(0, equationsWithScore.Length);
+            ref EquationWithScore firstEquationWithScore = ref equationsWithScore[firstCompetitorIndex];
+            ref EquationWithScore secondEquationWithScore = ref equationsWithScore[secondCompetitorIndex];
+
+            firstEquationWithScore.Score ??= problem.EvaluateEquation(firstEquationWithScore.Equation, equationValues);
+            secondEquationWithScore.Score ??= problem.EvaluateEquation(secondEquationWithScore.Equation, equationValues);
+            if (firstEquationWithScore.Score == secondEquationWithScore.Score)
+            {
+                continue;
+            }
+            else if (firstEquationWithScore.Score < secondEquationWithScore.Score)
+            {
+                ReplaceWorseEquationWithBetterEquationAndEvolve(random, equationValues, ref firstEquationWithScore, ref secondEquationWithScore);
+            }
+            else
+            {
+                ReplaceWorseEquationWithBetterEquationAndEvolve(random, equationValues, ref secondEquationWithScore, ref firstEquationWithScore);
+            }
+        }
+        _iterationCount += competitionCount;
+
+        int randomEvolutionCount = (int)(_candidateCount * _candidateRandomEvolutionRate);
+        for (int i = 0; i < randomEvolutionCount; i++)
+        {
+            int equationIndex = random.Next(equationsWithScore.Length);
+            ref EquationWithScore equationWithScore = ref equationsWithScore[equationIndex];
+
+            Evolve(random, equationValues, ref equationWithScore);
+        }
+        _iterationCount += randomEvolutionCount;
+
+        usedOperations.Clear();
+        int randomCombiningCount = (int)(_candidateCount * _candidateRandomCombiningRate);
+        for (int i = 0; i < randomCombiningCount; i++)
+        {
+            int firstCompetitorIndex = GetUnusedEquation(random, equationsWithScore, usedOperations);
+            int secondCompetitorIndex = GetUnusedEquation(random, equationsWithScore, usedOperations);
+            int thirdCompetitorIndex = GetUnusedEquation(random, equationsWithScore, usedOperations);
+
+            ref EquationWithScore firstEquationWithScore = ref equationsWithScore[firstCompetitorIndex];
+            ref EquationWithScore secondEquationWithScore = ref equationsWithScore[secondCompetitorIndex];
+            ref EquationWithScore thirdEquationWithScore = ref equationsWithScore[thirdCompetitorIndex];
+
+            firstEquationWithScore.Score ??= problem.EvaluateEquation(firstEquationWithScore.Equation, equationValues);
+            secondEquationWithScore.Score ??= problem.EvaluateEquation(secondEquationWithScore.Equation, equationValues);
+            thirdEquationWithScore.Score ??= problem.EvaluateEquation(thirdEquationWithScore.Equation, equationValues);
+
+            familyEquationsWithScore[0] = firstEquationWithScore;
+            familyEquationsWithScore[1] = secondEquationWithScore;
+            familyEquationsWithScore[2] = thirdEquationWithScore;
+            Array.Sort(familyEquationsWithScore);
+
+            if (!_equationCombiner.CombineEquations(random,
+                                               equationValues.StaticResultSize,
+                                               familyEquationsWithScore[0].Equation,
+                                               familyEquationsWithScore[1].Equation,
+                                               familyEquationsWithScore[2].Equation))
+            {
+                continue;
+            }
+
+            if (firstEquationWithScore.Equation == familyEquationsWithScore[2].Equation)
+            {
+                firstEquationWithScore.Score = null;
+            }
+            else if (secondEquationWithScore.Equation == familyEquationsWithScore[2].Equation)
+            {
+                secondEquationWithScore.Score = null;
+            }
+            else
+            {
+                thirdEquationWithScore.Score = null;
+            }
+        }
+        _iterationCount += randomCombiningCount;
+
+        return Task.CompletedTask;
     }
 
     public ISolver Copy()

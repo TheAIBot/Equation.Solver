@@ -6,3 +6,10 @@ internal interface ISolver : IReporting
 
     ISolver Copy();
 }
+
+internal interface IChunkSolver : IReporting
+{
+    Task PrepareToSolveAsync(EquationProblem problem, CancellationToken cancellationToken);
+
+    Task SolveStepAsync(EquationProblem problem, CancellationToken cancellationToken);
+}
