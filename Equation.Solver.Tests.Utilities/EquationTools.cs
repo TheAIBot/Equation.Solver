@@ -36,7 +36,7 @@ internal static class EquationTools
         ProblemParts problemParts = CreateUnsetEquationWithExamples(examples, operatorCount);
         RandomSolver.Randomize(random, problemParts.Equation, problemParts.EquationValues);
 
-        problemParts.Equation.RecalculateOperatorsUsed(problemParts.EquationValues.StaticResultSize);
+        problemParts.Equation.RecalculateOperatorsUsed(problemParts.EquationValues.InputParameterCount);
         return problemParts;
     }
 
@@ -44,7 +44,7 @@ internal static class EquationTools
     {
         ProblemParts problemParts = CreateUnsetEquationWithExamples(examples, operators.Length);
         operators.CopyTo(problemParts.Equation.NandOperators);
-        problemParts.Equation.RecalculateOperatorsUsed(problemParts.EquationValues.StaticResultSize);
+        problemParts.Equation.RecalculateOperatorsUsed(problemParts.EquationValues.InputParameterCount);
 
         return problemParts;
     }
@@ -53,7 +53,6 @@ internal static class EquationTools
     {
         var examples = ProblemExample.ConvertToExamples(problemExamples).ToArray();
         var equationValues = new EquationValues(examples[0].Input.Count, operatorCount);
-        equationValues.SetParameters(examples[0].Input);
         var equation = new ProblemEquation(operatorCount, examples[0].Output.Count);
 
         return new ProblemParts(equation, equationValues, examples, new EquationProblem(examples));

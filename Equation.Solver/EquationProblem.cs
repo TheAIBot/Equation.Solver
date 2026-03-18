@@ -6,7 +6,7 @@ namespace Equation.Solver;
 internal sealed class EquationProblem
 {
     private readonly ProblemExample[] _examples;
-    public int ParameterCount => _examples[0].Input.Inputs.Length;
+    public int ParameterCount => _examples[0].Input.Count;
     public int OutputCount => _examples[0].Output.Outputs.Length;
 
     public EquationProblem(ProblemExample[] examples)
@@ -38,8 +38,7 @@ internal sealed class EquationProblem
         for (int i = 0; i < _examples.Length; i++)
         {
             ProblemExample example = _examples[i];
-            equationValues.SetParameters(example.Input);
-            ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues);
+            ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues, example);
             example.Output.CalculateDifference(equationResult, bitErrors);
         }
     }
@@ -52,8 +51,7 @@ internal sealed class EquationProblem
         for (int i = 0; i < _examples.Length; i++)
         {
             ProblemExample example = _examples[i];
-            equationValues.SetParameters(example.Input);
-            ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues);
+            ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues, example);
             for (int z = 0; z < equationResult.Length; z++)
             {
                 outputResults[outputResultIndex++] = equationResult[z];

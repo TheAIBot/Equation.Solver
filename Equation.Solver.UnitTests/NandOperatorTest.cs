@@ -15,7 +15,7 @@ public sealed class NandOperatorTest
 
         fixed (Vector256<int>* valuesPtr = values)
         {
-            Vector256<int> actual = nand.Nand((int*)valuesPtr);
+            Vector256<int> actual = nand.Nand((int*)valuesPtr, null, 0);
 
             Assert.Equal(expected, actual.GetElement(0) & 0b1111);
         }

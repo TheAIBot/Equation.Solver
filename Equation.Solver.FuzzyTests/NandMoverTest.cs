@@ -26,9 +26,9 @@ public sealed class NandMoverTest
         Random random = new Random(randomSeed);
         ProblemParts problemParts = EquationTools.CreateRandomEquation(randomSeed);
         Vector256<int>[] expectedResults = problemParts.EquationProblem.GetEquationResults(problemParts.Equation, problemParts.EquationValues);
-        NandMover nandMover = new NandMover(problemParts.EquationValues.StaticResultSize, problemParts.Equation.NandOperators.Length);
+        NandMover nandMover = new NandMover(problemParts.EquationValues.InputParameterCount, problemParts.Equation.NandOperators.Length);
 
-        nandMover.MoveRandomNandOperator(random, problemParts.EquationValues.StaticResultSize, problemParts.Equation.OutputSize, problemParts.Equation.NandOperators, problemParts.Equation.OperatorsUsed);
+        nandMover.MoveRandomNandOperator(random, problemParts.EquationValues.InputParameterCount, problemParts.Equation.OutputSize, problemParts.Equation.NandOperators, problemParts.Equation.OperatorsUsed);
 
         Vector256<int>[] actualResults = problemParts.EquationProblem.GetEquationResults(problemParts.Equation, problemParts.EquationValues);
         Assert.Equal(expectedResults, actualResults);
@@ -37,7 +37,7 @@ public sealed class NandMoverTest
         problemParts.Equation.OperatorsUsed.CopyTo(usedOperatorsAfterMove);
 
         problemParts.Equation.OperatorsUsed.Clear();
-        problemParts.Equation.RecalculateOperatorsUsed(problemParts.EquationValues.StaticResultSize);
+        problemParts.Equation.RecalculateOperatorsUsed(problemParts.EquationValues.InputParameterCount);
         bool[] recalculatedOperatorsUsedAfterMove = new bool[problemParts.Equation.NandOperators.Length];
         problemParts.Equation.OperatorsUsed.CopyTo(recalculatedOperatorsUsedAfterMove);
 

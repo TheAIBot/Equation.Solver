@@ -68,14 +68,14 @@ internal sealed class RandomSolver : ISolver
     internal static void Randomize(Random random, ProblemEquation equation, EquationValues equationValues)
     {
         Span<NandOperator> operators = equation.NandOperators;
-        int staticResultSize = equationValues.StaticResultSize;
+        int inputParameterCount = equationValues.InputParameterCount;
         for (int i = 0; i < operators.Length; i++)
         {
-            int leftValueIndex = random.Next(0, staticResultSize + i);
-            int rightValueIndex = random.Next(0, staticResultSize + i);
+            int leftValueIndex = random.Next(0, inputParameterCount + i);
+            int rightValueIndex = random.Next(0, inputParameterCount + i);
             operators[i] = new NandOperator(leftValueIndex, rightValueIndex);
         }
 
-        equation.RecalculateOperatorsUsed(staticResultSize);
+        equation.RecalculateOperatorsUsed(inputParameterCount);
     }
 }

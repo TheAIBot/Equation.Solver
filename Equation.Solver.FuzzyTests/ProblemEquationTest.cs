@@ -27,7 +27,7 @@ public sealed class ProblemEquationTest
         problemParts.Equation.OperatorsUsed.SetRangeTrue(0, problemParts.Equation.OperatorsUsed.Length, true);
         Vector256<int>[] expectedResults = problemParts.EquationProblem.GetEquationResults(problemParts.Equation, problemParts.EquationValues);
 
-        problemParts.Equation.RecalculateOperatorsUsed(problemParts.EquationValues.StaticResultSize);
+        problemParts.Equation.RecalculateOperatorsUsed(problemParts.EquationValues.InputParameterCount);
 
         Vector256<int>[] actualResults = problemParts.EquationProblem.GetEquationResults(problemParts.Equation, problemParts.EquationValues);
         Assert.Equal(expectedResults, actualResults);

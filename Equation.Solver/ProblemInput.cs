@@ -1,8 +1,25 @@
-﻿using System.Runtime.Intrinsics;
+﻿using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 
 namespace Equation.Solver;
 
-internal readonly record struct ProblemInput(Vector256<int>[] Inputs)
+internal unsafe readonly struct ProblemInput
 {
-    public int Count => Inputs.Length;
+    private readonly Vector256<int>* _inputs;
+    private readonly int _length;
+
+
+    public readonly Vector256<int>* Inputs => _inputs;
+    public readonly int Count => _length;
+
+    public ProblemInput(Vector256<int>[] inputs)
+    {
+        _inputs = (Vector256<int>*)NativeMemory.AlignedAlloc((nuint)(sizeof(Vector256<int>) * inputs.Length), (nuint)sizeof(Vector256<int>));
+        _length = inputs.Length;
+
+        for (int i = 0; i < inputs.Length; i++)
+        {
+            _inputs[i] = inputs[i];
+        }
+    }
 }
