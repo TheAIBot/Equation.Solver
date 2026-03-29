@@ -12,4 +12,8 @@ internal interface IChunkSolver : IReporting
     Task PrepareToSolveAsync(EquationProblem problem, CancellationToken cancellationToken);
 
     Task SolveStepAsync(EquationProblem problem, CancellationToken cancellationToken);
+
+    IChunkSolver CopyChunkSolver();
+
+    Span<EquationWithScore> GetEquations();
 }

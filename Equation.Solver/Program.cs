@@ -14,6 +14,7 @@ internal sealed class Program
         //ISolver solver = new ParallelSolver(new RandomEvolutionSolver(problem.ParameterCount, 1000, 100_000, 0.1f, 0.0025f, 0.0001f, 0.5f));
         ISolver solver = new ParallelSolver(new RandomEvolutionSolverWithEquationCombining(problem.ParameterCount, 1000, problem.OutputCount, 100_000, 0.01f, 0.0025f, 0.001f, 0.001f, 0.5f));
         //ISolver solver = new RandomChunkEvolutionSolver(100, 10_000, new RandomChunkEvolver(200, 10_000, 0.1f, 0.02f, problem.ParameterCount, problem.OutputCount));
+        ISolver solver = new DefaultChunkSolverSolver(new RandomEvolutionSolverWithEquationCombining(problem.ParameterCount, 1000, problem.OutputCount, 100_000, 0.01f, 0.0025f, 0.001f, 0.001f, 0.5f));
 
 
         await RunSolver(solver, problem);
@@ -23,10 +24,10 @@ internal sealed class Program
     {
         var averageIterationsPerSecond = new SampleAverage(10);
         long prevIterationCount = 0;
-        var cancellation = new CancellationTokenSource();
+        using var cancellation = new CancellationTokenSource();
         Task solverTask = Task.Run(() => solver.SolveAsync(problem, cancellation.Token));
 
-        PeriodicTimer timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         while (await timer.WaitForNextTickAsync(cancellation.Token))
         {
             SolverReport? report = solver.GetReport();

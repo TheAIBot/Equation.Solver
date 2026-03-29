@@ -4,6 +4,90 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Equation.Solver.Solvers;
 
+internal sealed class ParallelMixSolver : ISolver
+{
+    private readonly IChunkSolver _chunkSolver;
+    private readonly int _chunkSolverIterationsPerMix;
+    private EquationScore? _bestScore;
+
+    public ParallelMixSolver(IChunkSolver chunkSolver,
+                             int chunkSolverIterationsPerMix)
+    {
+        _chunkSolver = chunkSolver;
+        _chunkSolverIterationsPerMix = chunkSolverIterationsPerMix;
+    }
+
+    public SolverReport? GetReport()
+    {
+        var report = _chunkSolver.GetReport();
+        _bestScore = report?.BestScore;
+        return report;
+    }
+
+    public async Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
+    {
+        IChunkSolver[] chunkSolvers = Enumerable.Range(0, Environment.ProcessorCount - 1)
+                                                .Select(_ => _chunkSolver.CopyChunkSolver())
+                                                .ToArray();
+
+        await Task.WhenAll(chunkSolvers.Select(x => x.PrepareToSolveAsync(problem, cancellationToken)));
+
+        _bestScore = EquationScore.MaxScore;
+        while (_bestScore?.WrongBits != 0 && !cancellationToken.IsCancellationRequested)
+        {
+            for (int i = 0; i < _chunkSolverIterationsPerMix; i++)
+            {
+                if (_bestScore?.WrongBits == 0 ||
+                    cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                await Task.WhenAll(chunkSolvers.Select(x => x.SolveStepAsync(problem, cancellationToken)));
+            }
+        }
+    }
+
+    public ISolver Copy()
+    {
+        throw new NotImplementedException();
+    }
+}
+
+internal sealed class DefaultChunkSolverSolver : ISolver
+{
+    private readonly IChunkSolver _chunkSolver;
+    private EquationScore? _bestScore;
+
+    public DefaultChunkSolverSolver(IChunkSolver chunkSolver)
+    {
+        _chunkSolver = chunkSolver;
+    }
+
+    public SolverReport? GetReport()
+    {
+        var report = _chunkSolver.GetReport();
+        _bestScore = report?.BestScore;
+        return report;
+    }
+
+    public async Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
+    {
+        await _chunkSolver.PrepareToSolveAsync(problem, cancellationToken);
+
+        _bestScore = EquationScore.MaxScore;
+        while (_bestScore?.WrongBits != 0 && !cancellationToken.IsCancellationRequested)
+        {
+            await _chunkSolver.SolveStepAsync(problem, cancellationToken);
+        }
+    }
+
+    public ISolver Copy()
+    {
+        throw new NotImplementedException();
+    }
+}
+
 internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChunkSolver
 {
     private readonly int _parameterCount;
@@ -67,24 +151,6 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
         return new SolverReport(_iterationCount, _bestScore.Value, _bestEquation);
     }
 
-    public Task PrepareToSolveAsync(EquationProblem problem, CancellationToken cancellationToken)
-    {
-        _random = new Random();
-        _equationsWithScore = new EquationWithScore[_candidateCount];
-        _equationValues = new EquationValues(problem.ParameterCount, _operatorCount);
-
-        var random = _random;
-        var equationsWithScore = _equationsWithScore;
-        var equationValues = _equationValues;
-        for (int i = 0; i < equationsWithScore.Length; i++)
-        {
-            equationsWithScore[i] = new EquationWithScore(new ProblemEquation(_operatorCount, problem.OutputCount), null);
-            RandomSolver.Randomize(random, equationsWithScore[i].Equation, equationValues);
-        }
-
-        return Task.CompletedTask;
-    }
-
     public async Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
     {
         _isRunning = true;
@@ -103,6 +169,24 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
         {
             _isRunning = false;
         }
+    }
+
+    public Task PrepareToSolveAsync(EquationProblem problem, CancellationToken cancellationToken)
+    {
+        _random = new Random();
+        _equationsWithScore = new EquationWithScore[_candidateCount];
+        _equationValues = new EquationValues(problem.ParameterCount, _operatorCount);
+
+        var random = _random;
+        var equationsWithScore = _equationsWithScore;
+        var equationValues = _equationValues;
+        for (int i = 0; i < equationsWithScore.Length; i++)
+        {
+            equationsWithScore[i] = new EquationWithScore(new ProblemEquation(_operatorCount, problem.OutputCount), null);
+            RandomSolver.Randomize(random, equationsWithScore[i].Equation, equationValues);
+        }
+
+        return Task.CompletedTask;
     }
 
     public Task SolveStepAsync(EquationProblem problem, CancellationToken cancellationToken)
@@ -178,10 +262,10 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
             Array.Sort(familyEquationsWithScore);
 
             if (!_equationCombiner.CombineEquations(random,
-                                               equationValues.InputParameterCount,
-                                               familyEquationsWithScore[0].Equation,
-                                               familyEquationsWithScore[1].Equation,
-                                               familyEquationsWithScore[2].Equation))
+                                                    equationValues.InputParameterCount,
+                                                    familyEquationsWithScore[0].Equation,
+                                                    familyEquationsWithScore[1].Equation,
+                                                    familyEquationsWithScore[2].Equation))
             {
                 continue;
             }
@@ -215,6 +299,24 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
                                                               _candidateRandomEvolutionRate,
                                                               _candidateRandomCombiningRate,
                                                               _chanceOnlyMoveOperator);
+    }
+
+    public IChunkSolver CopyChunkSolver()
+    {
+        return new RandomEvolutionSolverWithEquationCombining(_parameterCount,
+                                                              _operatorCount,
+                                                              _outputCount,
+                                                              _candidateCount,
+                                                              _candidateCompetitionRate,
+                                                              _candidateRandomizationRate,
+                                                              _candidateRandomEvolutionRate,
+                                                              _candidateRandomCombiningRate,
+                                                              _chanceOnlyMoveOperator);
+    }
+
+    public Span<EquationWithScore> GetEquations()
+    {
+        return _
     }
 
     private void ReplaceWorseEquationWithBetterEquationAndEvolve(Random random,
@@ -265,12 +367,12 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
         usedEquations.Add(index);
         return index;
     }
+}
 
-    private record struct EquationWithScore(ProblemEquation Equation, SlimEquationScore? Score) : IComparable<EquationWithScore>
+internal record struct EquationWithScore(ProblemEquation Equation, SlimEquationScore? Score) : IComparable<EquationWithScore>
+{
+    public int CompareTo(EquationWithScore other)
     {
-        public int CompareTo(EquationWithScore other)
-        {
-            return Score!.Value.WrongBits - other.Score!.Value.WrongBits;
-        }
+        return Score!.Value.WrongBits - other.Score!.Value.WrongBits;
     }
 }
