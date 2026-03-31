@@ -6,31 +6,42 @@ namespace Equation.Solver.Solvers;
 
 internal sealed class ParallelMixSolver : ISolver
 {
-    private readonly IChunkSolver _chunkSolver;
+    private readonly IChunkSolver[] _chunkSolvers;
     private readonly int _chunkSolverIterationsPerMix;
     private EquationScore? _bestScore;
 
     public ParallelMixSolver(IChunkSolver chunkSolver,
                              int chunkSolverIterationsPerMix)
     {
-        _chunkSolver = chunkSolver;
         _chunkSolverIterationsPerMix = chunkSolverIterationsPerMix;
+        _chunkSolvers = Enumerable.Range(0, Environment.ProcessorCount - 1)
+                                        .Select(_ => chunkSolver.CopyChunkSolver())
+                                        .ToArray();
     }
 
     public SolverReport? GetReport()
     {
-        var report = _chunkSolver.GetReport();
-        _bestScore = report?.BestScore;
-        return report;
+        SolverReport[] reports = _chunkSolvers.Select(x => x.GetReport())
+                                              .OfType<SolverReport>()
+                                              .ToArray();
+        if (reports.Length == 0)
+        {
+            return null;
+        }
+
+        SolverReport bestReport = reports.MinBy(x => x.BestScore.WrongBits)!;
+        _bestScore = bestReport?.BestScore;
+        return new SolverReport(reports.Sum(x => x.IterationCount), bestReport.BestScore, bestReport.BestEquation);
     }
 
     public async Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
     {
-        IChunkSolver[] chunkSolvers = Enumerable.Range(0, Environment.ProcessorCount - 1)
-                                                .Select(_ => _chunkSolver.CopyChunkSolver())
-                                                .ToArray();
+        IChunkSolver[] chunkSolvers = _chunkSolvers;
 
-        await Task.WhenAll(chunkSolvers.Select(x => x.PrepareToSolveAsync(problem, cancellationToken)));
+        await Task.WhenAll(chunkSolvers.Select(x => Task.Run(() => x.PrepareToSolveAsync(problem, cancellationToken))));
+
+        var random = new Random(398906);
+        EquationWithScore[] randomizedEquations = new EquationWithScore[chunkSolvers.Length];
 
         _bestScore = EquationScore.MaxScore;
         while (_bestScore?.WrongBits != 0 && !cancellationToken.IsCancellationRequested)
@@ -43,7 +54,29 @@ internal sealed class ParallelMixSolver : ISolver
                     return;
                 }
 
-                await Task.WhenAll(chunkSolvers.Select(x => x.SolveStepAsync(problem, cancellationToken)));
+                await Task.WhenAll(chunkSolvers.Select(x => Task.Run(() => x.SolveStepAsync(problem, cancellationToken))));
+            }
+
+
+            EquationWithScore[][] chunkEquations = chunkSolvers.Select(x => x.GetEquations()).ToArray();
+            for (int equationIndex = 0; equationIndex < chunkEquations[0].Length; equationIndex++)
+            {
+                for (int chunkIndex = 0; chunkIndex < chunkSolvers.Length; chunkIndex++)
+                {
+                    randomizedEquations[chunkIndex] = chunkEquations[chunkIndex][equationIndex];
+                }
+
+                random.Shuffle(randomizedEquations);
+
+                for (int chunkIndex = 0; chunkIndex < chunkSolvers.Length; chunkIndex++)
+                {
+                    chunkEquations[chunkIndex][equationIndex] = randomizedEquations[chunkIndex];
+                }
+            }
+
+            for (int chunkIndex = 0; chunkIndex < chunkSolvers.Length; chunkIndex++)
+            {
+                chunkSolvers[chunkIndex].UpdateInternalStateAfterEquationChanges();
             }
         }
     }
@@ -153,13 +186,10 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
 
     public async Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
     {
-        _isRunning = true;
         try
         {
             await PrepareToSolveAsync(problem, cancellationToken);
 
-            _iterationCount = 0;
-            _bestScore = EquationScore.MaxScore;
             while (_bestScore?.WrongBits != 0 && !cancellationToken.IsCancellationRequested)
             {
                 await SolveStepAsync(problem, cancellationToken);
@@ -185,6 +215,10 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
             equationsWithScore[i] = new EquationWithScore(new ProblemEquation(_operatorCount, problem.OutputCount), null);
             RandomSolver.Randomize(random, equationsWithScore[i].Equation, equationValues);
         }
+
+        _isRunning = true;
+        _iterationCount = 0;
+        _bestScore = EquationScore.MaxScore;
 
         return Task.CompletedTask;
     }
@@ -284,7 +318,6 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
             }
         }
         _iterationCount += randomCombiningCount;
-
         return Task.CompletedTask;
     }
 
@@ -314,9 +347,45 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
                                                               _chanceOnlyMoveOperator);
     }
 
-    public Span<EquationWithScore> GetEquations()
+    public EquationWithScore[] GetEquations()
     {
-        return _
+        if (_equationsWithScore == null)
+        {
+            throw new InvalidOperationException("Equations have not been initialized yet.");
+        }
+
+        return _equationsWithScore;
+    }
+
+    public void UpdateInternalStateAfterEquationChanges()
+    {
+        if (_equationsWithScore == null ||
+            _equationValues == null)
+        {
+            throw new InvalidOperationException();
+        }
+
+        var equationsWithScore = _equationsWithScore;
+        var equationValues = _equationValues;
+
+        EquationScore? newBestScore = null;
+        int? newBestScoreIndex = null;
+        for (int i = 0; i < equationsWithScore.Length; i++)
+        {
+            SlimEquationScore? equationScore = equationsWithScore[i].Score;
+            if (equationScore != null)
+            {
+                if (newBestScore == null ||
+                    newBestScore.Value.WrongBits > equationScore.Value.WrongBits)
+                {
+                    newBestScore = _fullScorer.ToFullScore(equationScore.Value, equationValues, equationsWithScore[i].Equation);
+                    newBestScoreIndex = i;
+                }
+            }
+        }
+
+        _bestScore = newBestScore ?? EquationScore.MaxScore;
+        _bestEquation = newBestScoreIndex != null ? equationsWithScore[newBestScoreIndex.Value].Equation.Copy() : null;
     }
 
     private void ReplaceWorseEquationWithBetterEquationAndEvolve(Random random,

@@ -15,5 +15,7 @@ internal interface IChunkSolver : IReporting
 
     IChunkSolver CopyChunkSolver();
 
-    Span<EquationWithScore> GetEquations();
+    EquationWithScore[] GetEquations();
+
+    void UpdateInternalStateAfterEquationChanges();
 }
