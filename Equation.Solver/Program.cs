@@ -6,19 +6,30 @@ internal sealed class Program
 {
     static async Task Main(string[] args)
     {
-        ProblemExample[] examples = ProblemExample.ConvertToExamples(CreateBiArgOperatorExamplesAsInts(1_000, 10, (x, y) => x + y)).ToArray();
+        //ProblemExample[] examples = ProblemExample.ConvertToExamples().ToArray();
 
-        var problem = new EquationProblem(examples);
+        IExampleCluster exampleCluster = new RandomExampleCluster([
+            new RandomExampleClustering(1.0f, 10),
+            new RandomExampleClustering(0.3f, 10),
+        ]);
+        var exampleClusters = exampleCluster.ToClusters(CreateBiArgOperatorExamplesAsInts(1_000, 10, (x, y) => x + y));
+        IEnumerable<ProblemExample[]> problemClusters = exampleClusters.Select(x => ProblemExample.ConvertToExamples(x).ToArray());
+
+        var problems = problemClusters.Select(x => new EquationProblem(x)).ToArray();
         //ISolver solver = new ParallelSolver(new RandomSolver(200));
         //ISolver solver = new ParallelSolver(new EvolveBestSolver(20000, 0.0002f));
         //ISolver solver = new ParallelSolver(new RandomEvolutionSolver(problem.ParameterCount, 1000, 100_000, 0.1f, 0.0025f, 0.0001f, 0.5f));
         //ISolver solver = new ParallelSolver(new RandomEvolutionSolverWithEquationCombining(problem.ParameterCount, 1000, problem.OutputCount, 100_000, 0.01f, 0.0025f, 0.001f, 0.001f, 0.5f));
         //ISolver solver = new RandomChunkEvolutionSolver(100, 10_000, new RandomChunkEvolver(200, 10_000, 0.1f, 0.02f, problem.ParameterCount, problem.OutputCount));
-        ISolver solver = new ParallelMixSolver(new RandomEvolutionSolverWithEquationCombining(problem.ParameterCount, 1000, problem.OutputCount, 100_000, 0.01f, 0.0025f, 0.001f, 0.001f, 0.5f),
-                                               10);
-
-
-        await RunSolver(solver, problem);
+        int operatorCount = 1_000;
+        ISolver solver = new ParallelMixSolver(new RandomEvolutionSolverWithEquationCombining(problems[0].ParameterCount, operatorCount, problems[0].OutputCount, 10_00, 0.01f, 0.0025f, 0.01f, 0.001f, 0.1f),
+                                               problems,
+                                               problems[0],
+                                               operatorCount,
+                                               100,
+                                               0.02f);
+        //await RunSolver(solver, problem);
+        await RunSolver(solver, null!);
     }
 
     private static async Task RunSolver(ISolver solver, EquationProblem problem)

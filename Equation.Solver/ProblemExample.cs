@@ -2,6 +2,54 @@
 
 namespace Equation.Solver;
 
+internal interface IExampleCluster
+{
+    List<(bool[] inputs, bool[] outputs)>[] ToClusters(IEnumerable<(bool[] inputs, bool[] outputs)> examples);
+}
+
+internal sealed class RandomExampleCluster : IExampleCluster
+{
+    private readonly RandomExampleClustering[] _groupings;
+
+    public RandomExampleCluster(RandomExampleClustering[] randomGroupings)
+    {
+        _groupings = randomGroupings;
+    }
+
+    public List<(bool[] inputs, bool[] outputs)>[] ToClusters(IEnumerable<(bool[] inputs, bool[] outputs)> examples)
+    {
+        int totalClusterCount = _groupings.Sum(x => x.ClusterssWithThisChance);
+        var exampleClusters = new List<(bool[] inputs, bool[] outputs)>[totalClusterCount];
+
+        for (int i = 0; i < exampleClusters.Length; i++)
+        {
+            exampleClusters[i] = [];
+        }
+
+        var random = new Random(64789);
+        foreach (var example in examples)
+        {
+            int index = 0;
+            foreach (var exampleGrouping in _groupings)
+            {
+                for (int groupIndex = 0; groupIndex < exampleGrouping.ClusterssWithThisChance; groupIndex++)
+                {
+                    if (random.NextSingle() <= exampleGrouping.PercentOfAllProblems)
+                    {
+                        exampleClusters[index].Add(example);
+                    }
+
+                    index++;
+                }
+            }
+        }
+
+        return exampleClusters;
+    }
+}
+
+internal readonly record struct RandomExampleClustering(float PercentOfAllProblems, int ClusterssWithThisChance);
+
 internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput Output)
 {
     public static IEnumerable<ProblemExample> ConvertToExamples(IEnumerable<(bool[] inputs, bool[] outputs)> examples)
