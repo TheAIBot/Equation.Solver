@@ -11,6 +11,7 @@ internal sealed class EquationProblem
 
     public EquationProblem(ProblemExample[] examples)
     {
+        ArgumentOutOfRangeException.ThrowIfZero(examples.Length);
         _examples = examples;
     }
 

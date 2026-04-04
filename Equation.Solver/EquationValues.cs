@@ -3,7 +3,7 @@ using System.Runtime.Intrinsics;
 
 namespace Equation.Solver;
 
-internal unsafe sealed class EquationValues
+internal unsafe sealed class EquationValues : IDisposable
 {
     public readonly Vector256<int>* OperatorResults;
     public readonly int _size;
@@ -18,5 +18,10 @@ internal unsafe sealed class EquationValues
         // For vectorized code, aligned load/stores can be important in order to achieve optimal performance.
         // That's why we align this array by the vectors size so only aligned loads/stores are done.
         OperatorResults = (Vector256<int>*)NativeMemory.AlignedAlloc((nuint)(sizeof(Vector256<int>) * _size), (nuint)sizeof(Vector256<int>));
+    }
+
+    public void Dispose()
+    {
+        NativeMemory.AlignedFree(OperatorResults);
     }
 }
