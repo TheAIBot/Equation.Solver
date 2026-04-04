@@ -2,7 +2,7 @@
 
 internal sealed class FullScorer
 {
-    private readonly HashSet<int> _nodesUsed = new HashSet<int>();
+    private readonly Dictionary<int, int> _nodesUsed = [];
     private readonly Stack<NandDistance> _nodesToCheck = new Stack<NandDistance>();
 
     public EquationScore ToFullScore(SlimEquationScore slimScore, EquationValues equationValues, ProblemEquation equation)
@@ -13,7 +13,7 @@ internal sealed class FullScorer
 
     private (int sequentialNandGates, int nandCount) CalculateMaxLength(int inputParameterCount, int outputCount, ReadOnlySpan<NandOperator> nandOperators)
     {
-        var nodesUsed = _nodesUsed;
+        Dictionary<int, int> nodesUsed = _nodesUsed;
         nodesUsed.Clear();
         var nodesToCheck = _nodesToCheck;
         nodesToCheck.Clear();
@@ -27,6 +27,11 @@ internal sealed class FullScorer
         while (nodesToCheck.Count > 0)
         {
             NandDistance distance = nodesToCheck.Pop();
+            if (nodesUsed.TryGetValue(distance.NandIndex, out int registeredDepth) && registeredDepth > distance.Distance)
+            {
+                continue;
+            }
+
             maxDepth = Math.Max(maxDepth, distance.Distance);
 
             AddIndexesToStack(inputParameterCount, distance.Distance, nodesToCheck, nandOperators[distance.NandIndex], nodesUsed);
@@ -35,17 +40,19 @@ internal sealed class FullScorer
         return (maxDepth, nodesUsed.Count);
     }
 
-    private static void AddIndexesToStack(int inputParameterCount, int depth, Stack<NandDistance> nodes, NandOperator nandOperator, HashSet<int> nodesUsed)
+    private static void AddIndexesToStack(int inputParameterCount, int depth, Stack<NandDistance> nodes, NandOperator nandOperator, Dictionary<int, int> nodesUsed)
     {
         int leftIndex = nandOperator.LeftValueIndex - inputParameterCount;
-        if (leftIndex > 0 && nodesUsed.Add(leftIndex))
+        if (leftIndex > 0 && (!nodesUsed.TryGetValue(leftIndex, out int leftRegisteredDepth) || leftRegisteredDepth < depth + 1))
         {
+            nodesUsed[leftIndex] = depth + 1;
             nodes.Push(new NandDistance(depth + 1, leftIndex));
         }
 
         int rightIndex = nandOperator.RightValueIndex - inputParameterCount;
-        if (rightIndex > 0 && nodesUsed.Add(rightIndex))
+        if (rightIndex > 0 && (!nodesUsed.TryGetValue(rightIndex, out int rightRegisteredDepth) || rightRegisteredDepth < depth + 1))
         {
+            nodesUsed[rightIndex] = depth + 1;
             nodes.Push(new NandDistance(depth + 1, rightIndex));
         }
     }
