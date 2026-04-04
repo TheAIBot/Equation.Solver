@@ -17,10 +17,9 @@ internal sealed class FullScorer
         nodesUsed.Clear();
         var nodesToCheck = _nodesToCheck;
         nodesToCheck.Clear();
-        int startNodes = outputCount;
-        for (int i = 0; i < startNodes; i++)
+        for (int i = 0; i < outputCount; i++)
         {
-            AddIndexesToStack(inputParameterCount, 0, nodesToCheck, nandOperators[nandOperators.Length - i - 1], nodesUsed);
+            AddIndexesToStack(inputParameterCount, 1, nodesToCheck, nandOperators[nandOperators.Length - i - 1], nodesUsed);
         }
 
         int maxDepth = 1;
@@ -37,20 +36,22 @@ internal sealed class FullScorer
             AddIndexesToStack(inputParameterCount, distance.Distance, nodesToCheck, nandOperators[distance.NandIndex], nodesUsed);
         }
 
-        return (maxDepth, nodesUsed.Count);
+        // The nand operators on the outputs are not counted in the above which is why
+        // they are added here
+        return (maxDepth, nodesUsed.Count + outputCount);
     }
 
     private static void AddIndexesToStack(int inputParameterCount, int depth, Stack<NandDistance> nodes, NandOperator nandOperator, Dictionary<int, int> nodesUsed)
     {
         int leftIndex = nandOperator.LeftValueIndex - inputParameterCount;
-        if (leftIndex > 0 && (!nodesUsed.TryGetValue(leftIndex, out int leftRegisteredDepth) || leftRegisteredDepth < depth + 1))
+        if (leftIndex >= 0 && (!nodesUsed.TryGetValue(leftIndex, out int leftRegisteredDepth) || leftRegisteredDepth < depth + 1))
         {
             nodesUsed[leftIndex] = depth + 1;
             nodes.Push(new NandDistance(depth + 1, leftIndex));
         }
 
         int rightIndex = nandOperator.RightValueIndex - inputParameterCount;
-        if (rightIndex > 0 && (!nodesUsed.TryGetValue(rightIndex, out int rightRegisteredDepth) || rightRegisteredDepth < depth + 1))
+        if (rightIndex >= 0 && (!nodesUsed.TryGetValue(rightIndex, out int rightRegisteredDepth) || rightRegisteredDepth < depth + 1))
         {
             nodesUsed[rightIndex] = depth + 1;
             nodes.Push(new NandDistance(depth + 1, rightIndex));
