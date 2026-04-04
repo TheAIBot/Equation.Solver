@@ -4,160 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Equation.Solver.Solvers;
 
-internal sealed class ParallelMixSolver : ISolver
-{
-    private readonly IChunkSolver[] _chunkSolvers;
-    private readonly EquationProblem[] _problems;
-    private readonly EquationProblem _wholeProblem;
-    private readonly int _chunkSolverIterationsPerMix;
-    private readonly float _chanceToMix;
-    private readonly EquationValues _equationValues;
-    private readonly FullScorer _fullScorer = new FullScorer();
-    private EquationScore? _bestScore;
-
-    public ParallelMixSolver(IChunkSolver chunkSolver,
-                             EquationProblem[] problems,
-                             EquationProblem wholeProblem,
-                             int operatorCount,
-                             int chunkSolverIterationsPerMix,
-                             float chanceToMix)
-    {
-        _chunkSolvers = problems.Select(_ => chunkSolver.CopyChunkSolver())
-                                        .ToArray();
-        _problems = problems;
-        _wholeProblem = wholeProblem;
-        _chunkSolverIterationsPerMix = chunkSolverIterationsPerMix;
-        _chanceToMix = chanceToMix;
-        _equationValues = new EquationValues(wholeProblem.ParameterCount, operatorCount);
-    }
-
-    public SolverReport? GetReport()
-    {
-        SolverReport[] allReports = _chunkSolvers.Select(x => x.GetReport())
-                                                 .OfType<SolverReport>()
-                                                 .ToArray();
-        if (allReports.Length == 0)
-        {
-            return null;
-        }
-
-        (SolverReport report, SlimEquationScore fullScore) = allReports.Select(x => (x, _wholeProblem.EvaluateEquation(x.BestEquation, _equationValues)))
-                                                                       .MinBy(x => x.Item2.WrongBits);
-
-        SolverReport bestReport = new SolverReport(allReports.Sum(x => x.IterationCount),
-                                                   _fullScorer.ToFullScore(fullScore, _equationValues, report.BestEquation),
-                                                   report.BestEquation);
-
-        _bestScore = bestReport.BestScore;
-        return bestReport;
-    }
-
-    public async Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
-    {
-        IChunkSolver[] chunkSolvers = _chunkSolvers;
-        EquationProblem[] problems = _problems;
-
-        var parallelOptions = new ParallelOptions()
-        {
-            MaxDegreeOfParallelism = Environment.ProcessorCount - 2,
-            CancellationToken = cancellationToken
-        };
-
-
-        await Parallel.ForAsync(0, chunkSolvers.Length, parallelOptions, async (i, cancellationToken) =>
-        {
-            await chunkSolvers[i].PrepareToSolveAsync(problems[i], cancellationToken);
-        });
-
-        var random = new Random(398906);
-        EquationWithScore[] randomizedEquations = new EquationWithScore[chunkSolvers.Length];
-
-        _bestScore = EquationScore.MaxScore;
-        while (_bestScore?.WrongBits != 0 && !cancellationToken.IsCancellationRequested)
-        {
-            if (_bestScore?.WrongBits == 0 ||
-                cancellationToken.IsCancellationRequested)
-            {
-                return;
-            }
-
-            await Parallel.ForAsync(0, chunkSolvers.Length, parallelOptions, async (x, cancellationToken) =>
-            {
-                for (int i = 0; i < _chunkSolverIterationsPerMix; i++)
-                {
-                    await chunkSolvers[x].SolveStepAsync(problems[x], cancellationToken);
-                }
-            });
-
-            EquationWithScore[][] chunkEquations = chunkSolvers.Select(x => x.GetEquations()).ToArray();
-            for (int equationIndex = 0; equationIndex < chunkEquations[0].Length; equationIndex++)
-            {
-                if (random.NextSingle() > _chanceToMix)
-                {
-                    continue;
-                }
-
-                for (int chunkIndex = 0; chunkIndex < chunkSolvers.Length; chunkIndex++)
-                {
-                    randomizedEquations[chunkIndex] = chunkEquations[chunkIndex][equationIndex];
-                    randomizedEquations[chunkIndex].Score = null;
-                }
-
-                random.Shuffle(randomizedEquations);
-
-                for (int chunkIndex = 0; chunkIndex < chunkSolvers.Length; chunkIndex++)
-                {
-                    chunkEquations[chunkIndex][equationIndex] = randomizedEquations[chunkIndex];
-                }
-            }
-
-            await Parallel.ForAsync(0, chunkSolvers.Length, parallelOptions, async (x, cancellationToken) =>
-            {
-                chunkSolvers[x].UpdateInternalStateAfterEquationChanges();
-            });
-        }
-    }
-
-    public ISolver Copy()
-    {
-        throw new NotImplementedException();
-    }
-}
-
-internal sealed class DefaultChunkSolverSolver : ISolver
-{
-    private readonly IChunkSolver _chunkSolver;
-    private EquationScore? _bestScore;
-
-    public DefaultChunkSolverSolver(IChunkSolver chunkSolver)
-    {
-        _chunkSolver = chunkSolver;
-    }
-
-    public SolverReport? GetReport()
-    {
-        var report = _chunkSolver.GetReport();
-        _bestScore = report?.BestScore;
-        return report;
-    }
-
-    public async Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
-    {
-        await _chunkSolver.PrepareToSolveAsync(problem, cancellationToken);
-
-        _bestScore = EquationScore.MaxScore;
-        while (_bestScore?.WrongBits != 0 && !cancellationToken.IsCancellationRequested)
-        {
-            await _chunkSolver.SolveStepAsync(problem, cancellationToken);
-        }
-    }
-
-    public ISolver Copy()
-    {
-        throw new NotImplementedException();
-    }
-}
-
 internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChunkSolver
 {
     private readonly int _parameterCount;
@@ -165,12 +11,12 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
     private readonly int _outputCount;
     private readonly int _candidateCount;
     private readonly float _candidateCompetitionRate;
-    private readonly float _candidateRandomizationRate;
+    private readonly int _candidateOperatorEvolveCount;
     private readonly float _candidateRandomEvolutionRate;
     private readonly float _candidateRandomCombiningRate;
     private readonly float _chanceOnlyMoveOperator;
     private readonly NandMover _nandMover;
-    private readonly NandChanger _nandChanger;
+    private readonly NandChangerOnlyUsedOperators _nandChanger;
     private readonly EquationCombiner _equationCombiner;
     private readonly FullScorer _fullScorer;
     private long _iterationCount;
@@ -188,7 +34,7 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
                                                       int outputCount,
                                                       int candidateCount,
                                                       float candidateCompetitionRate,
-                                                      float candidateRandomizationRate,
+                                                      int candidateOperatorEvolveCount,
                                                       float candidateRandomEvolutionRate,
                                                       float candidateRandomCombiningRate,
                                                       float chanceOnlyMoveOperator)
@@ -198,12 +44,12 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
         _outputCount = outputCount;
         _candidateCount = candidateCount;
         _candidateCompetitionRate = candidateCompetitionRate;
-        _candidateRandomizationRate = candidateRandomizationRate;
+        _candidateOperatorEvolveCount = candidateOperatorEvolveCount;
         _candidateRandomEvolutionRate = candidateRandomEvolutionRate;
         _candidateRandomCombiningRate = candidateRandomCombiningRate;
         _chanceOnlyMoveOperator = chanceOnlyMoveOperator;
         _nandMover = new NandMover(parameterCount, operatorCount);
-        _nandChanger = new NandChanger();
+        _nandChanger = new NandChangerOnlyUsedOperators();
         _equationCombiner = new EquationCombiner(operatorCount, outputCount);
         _fullScorer = new FullScorer();
     }
@@ -369,7 +215,7 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
                                                               _outputCount,
                                                               _candidateCount,
                                                               _candidateCompetitionRate,
-                                                              _candidateRandomizationRate,
+                                                              _candidateOperatorEvolveCount,
                                                               _candidateRandomEvolutionRate,
                                                               _candidateRandomCombiningRate,
                                                               _chanceOnlyMoveOperator);
@@ -382,7 +228,7 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
                                                               _outputCount,
                                                               _candidateCount,
                                                               _candidateCompetitionRate,
-                                                              _candidateRandomizationRate,
+                                                              _candidateOperatorEvolveCount,
                                                               _candidateRandomEvolutionRate,
                                                               _candidateRandomCombiningRate,
                                                               _chanceOnlyMoveOperator);
@@ -458,7 +304,7 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
         }
         else
         {
-            int operatorCountToRandomize = (int)(_operatorCount * _candidateRandomizationRate);
+            int operatorCountToRandomize = random.Next(1, _candidateOperatorEvolveCount + 1);
             if (_nandChanger.RandomizeSmallPartOfEquation(random, equationWithScore.Equation, equationValues, operatorCountToRandomize))
             {
                 equationWithScore.Score = null;
