@@ -329,6 +329,6 @@ internal record struct EquationWithScore(ProblemEquation Equation, SlimEquationS
 {
     public int CompareTo(EquationWithScore other)
     {
-        return Score!.Value.WrongBits - other.Score!.Value.WrongBits;
+        return Score!.Value.WrongBits.CompareTo(other.Score!.Value.WrongBits);
     }
 }
