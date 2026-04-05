@@ -61,4 +61,17 @@ internal sealed class EquationProblem
 
         return outputResults;
     }
+
+    public IEnumerable<bool> GetExampleCorrectness(ProblemEquation equation, EquationValues equationValues)
+    {
+        for (int i = 0; i < _examples.Length; i++)
+        {
+            ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues, _examples[i]);
+            bool[] correctness = _examples[i].Output.GetExampleCorrectness(equationResult);
+            foreach (bool correct in correctness)
+            {
+                yield return correct;
+            }
+        }
+    }
 }

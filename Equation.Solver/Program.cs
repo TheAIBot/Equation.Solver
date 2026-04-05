@@ -7,43 +7,53 @@ internal sealed class Program
 {
     static async Task Main(string[] args)
     {
-        //IEnumerable<(bool[] inputs, bool[] outputs)> examples = CreateBiArgOperatorExamplesAsInts(1_000, 10, (x, y) => x + y);
+        //(bool[] inputs, bool[] outputs)[] examples = CreateBiArgOperatorExamplesAsInts(1_000, 10, (x, y) => x + y).ToArray();
         //ProblemExample[] examples = ProblemExample.ConvertToExamples(examples).ToArray();
 
-        IEnumerable<(bool[] inputs, bool[] outputs)> examples = NormalizeExampleSizes(200, 100, CreateTextMathExamples(10_000, -10_000, 10_000));
+        (bool[] inputs, bool[] outputs)[] examples = CreateTextMathExamples(10_000, -10_000, 10_000).ToArray();
+        examples = NormalizeExampleSizes(examples).ToArray();
+        //examples = examples.Select(x => (x.inputs, x.outputs.Take(1).ToArray())).ToArray();
+
+        (bool[] inputs, bool[] outputs)[] validationRawExamples = GetValidationExamples(ref examples);
 
         long totalOutputBits = examples.Sum(x => x.outputs.LongLength);
         Console.WriteLine($"Total output bits: {totalOutputBits:N0}");
 
-        IExampleCluster exampleCluster = new RandomExampleCluster([
-            new RandomExampleClustering(1.0f, 10),
-            new RandomExampleClustering(0.3f, 10),
-        ]);
-        var exampleClusters = exampleCluster.ToClusters(examples);
+        //IExampleCluster exampleCluster = new RandomExampleCluster([
+        //    new RandomExampleClustering(1.0f, 50),
+        //    new RandomExampleClustering(0.3f, 20),
+        //]);
+        //var exampleClusters = exampleCluster.ToClusters(examples);
+        var exampleClusters = Enumerable.Repeat(examples, 50).ToArray();
         IEnumerable<ProblemExample[]> problemClusters = exampleClusters.Select(x => ProblemExample.ConvertToExamples(x).ToArray());
 
         var problems = problemClusters.Select(x => new EquationProblem(x)).ToArray();
+
+        var validationProblemExamples = ProblemExample.ConvertToExamples(validationRawExamples).ToArray();
+        var validationProblem = new EquationProblem(validationProblemExamples);
+
         //ISolver solver = new ParallelSolver(new RandomSolver(200));
         //ISolver solver = new ParallelSolver(new EvolveBestSolver(20000, 0.0002f));
         //ISolver solver = new ParallelSolver(new RandomEvolutionSolver(problem.ParameterCount, 1000, 100_000, 0.1f, 0.0025f, 0.0001f, 0.5f));
         //ISolver solver = new ParallelSolver(new RandomEvolutionSolverWithEquationCombining(problem.ParameterCount, 1000, problem.OutputCount, 100_000, 0.01f, 0.0025f, 0.001f, 0.001f, 0.5f));
         //ISolver solver = new RandomChunkEvolutionSolver(100, 10_000, new RandomChunkEvolver(200, 10_000, 0.1f, 0.02f, problem.ParameterCount, problem.OutputCount));
-        int operatorCount = 10_000;
-        ISolver solver = new ParallelMixSolver(new RandomEvolutionSolverWithEquationCombining(problems[0].ParameterCount, operatorCount, problems[0].OutputCount, 10_000, 0.01f, 0.0025f, 0.01f, 0.001f, 0.1f),
+        int operatorCount = 2_000;
+        ISolver solver = new ParallelMixSolver(new RandomEvolutionSolverWithEquationCombining(problems[0].ParameterCount, operatorCount, problems[0].OutputCount, 10_000, 0.01f, 2, 0.01f, 0.001f, 0.5f),
                                                problems,
                                                problems[0],
                                                operatorCount,
-                                               100,
+                                               30,
                                                0.02f);
         //await RunSolver(solver, problem);
-        await RunSolver(solver, null!);
+        await RunSolver(solver, null!, validationProblem, operatorCount);
     }
 
-    private static async Task RunSolver(ISolver solver, EquationProblem problem)
+    private static async Task RunSolver(ISolver solver, EquationProblem problem, EquationProblem validationProblem, int operatorCount)
     {
         var averageIterationsPerSecond = new SampleAverage(10);
         long prevIterationCount = 0;
         using var cancellation = new CancellationTokenSource();
+        using var validationEquationValues = new EquationValues(validationProblem.ParameterCount, operatorCount);
         Task solverTask = Task.Run(() => solver.SolveAsync(problem, cancellation.Token));
 
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
@@ -65,6 +75,8 @@ internal sealed class Program
             Console.WriteLine($"Iterations/s: {averageIterationsPerSecond.GetAverage():N0}");
             Console.WriteLine($"Best score: {report.BestScore:N0}");
             Console.WriteLine($"Best score length: {report.BestScore.MaxSequentialNandGates:N0}");
+            var validationResult = CountCorrectExamples(validationProblem, report.BestEquation, validationEquationValues);
+            Console.WriteLine($"Validation examples correct: {validationResult.Correct:N0}/{validationResult.Total:N0}");
             if (solver is IMultipleReporting multiReporting)
             {
                 SolverReport[] reports = multiReporting.GetAllReports();
@@ -80,6 +92,32 @@ internal sealed class Program
                 break;
             }
         }
+    }
+
+    private static (int Correct, int Total) CountCorrectExamples(EquationProblem validationProblem, ProblemEquation equation, EquationValues equationValues)
+    {
+        int correct = 0;
+        int total = 0;
+        foreach (var result in validationProblem.GetExampleCorrectness(equation, equationValues))
+        {
+            total++;
+            if (result)
+            {
+                correct++;
+            }
+        }
+
+        return (correct, total);
+    }
+
+    private static (bool[] inputs, bool[] outputs)[] GetValidationExamples(ref (bool[] inputs, bool[] outputs)[] examples)
+    {
+        int validationCount = examples.Length / 10;
+        var splitRandom = new Random(42);
+        var shuffled = examples.OrderBy(_ => splitRandom.Next()).ToArray();
+        var validationRawExamples = shuffled[..validationCount];
+        examples = shuffled[validationCount..];
+        return validationRawExamples;
     }
 
     private static IEnumerable<(bool[] inputs, bool[] outputs)> CreateBiArgOperatorExamplesAsInts(int exampleCount, int bitCount, Func<int, int, int> function)
@@ -110,14 +148,21 @@ internal sealed class Program
         }
     }
 
-    private static IEnumerable<(bool[] inputs, bool[] outputs)> NormalizeExampleSizes(int inputSize, int outputSize, IEnumerable<(bool[] inputs, bool[] outputs)> examples)
+    private static IEnumerable<(bool[] inputs, bool[] outputs)> NormalizeExampleSizes(IEnumerable<(bool[] inputs, bool[] outputs)> examples)
     {
+        int maxInputSize = -1;
+        int maxOutputSize = -1;
+        foreach (var example in examples)
+        {
+            maxInputSize = Math.Max(maxInputSize, example.inputs.Length);
+            maxOutputSize = Math.Max(maxOutputSize, example.outputs.Length);
+        }
         foreach (var example in examples)
         {
             var input = example.inputs;
-            Array.Resize(ref input, inputSize);
+            Array.Resize(ref input, maxInputSize);
             var output = example.outputs;
-            Array.Resize(ref output, outputSize);
+            Array.Resize(ref output, maxOutputSize);
             yield return (input, output);
         }
     }
