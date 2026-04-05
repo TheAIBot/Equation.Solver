@@ -38,7 +38,7 @@ internal sealed class NandMover
             }
 
             nodesUsedCount++;
-            AddIndexesToStack(inputParameterCount, nandOperators[i], nandMoveConstraints);
+            AddIndexesToStack(inputParameterCount, i + inputParameterCount, nandOperators[i], nandMoveConstraints);
 
             NandOperator nandOperator = nandOperators[i];
             // Calculation goes from left to right so can't move left of operator  value it uses
@@ -59,25 +59,25 @@ internal sealed class NandMover
         return nandsUsedMoveConstraints;
     }
 
-    private static void AddIndexesToStack(int inputParameterCount, NandOperator nandOperator, NandMoveConstraint[] nandMoveConstraints)
+    private static void AddIndexesToStack(int inputParameterCount, int consumerValueIndex, NandOperator nandOperator, NandMoveConstraint[] nandMoveConstraints)
     {
         int leftIndex = nandOperator.LeftValueIndex;
         if (leftIndex >= inputParameterCount)
         {
-            AddOrUpdateMovConstraint(inputParameterCount, leftIndex, nandMoveConstraints);
+            AddOrUpdateMovConstraint(inputParameterCount, leftIndex, consumerValueIndex, nandMoveConstraints);
         }
 
         int rightIndex = nandOperator.RightValueIndex;
         if (rightIndex >= inputParameterCount)
         {
-            AddOrUpdateMovConstraint(inputParameterCount, rightIndex, nandMoveConstraints);
+            AddOrUpdateMovConstraint(inputParameterCount, rightIndex, consumerValueIndex, nandMoveConstraints);
         }
     }
 
-    private static void AddOrUpdateMovConstraint(int inputParameterCount, int nandOperatorIndex, NandMoveConstraint[] nandMoveConstraints)
+    private static void AddOrUpdateMovConstraint(int inputParameterCount, int nandOperatorIndex, int consumerValueIndex, NandMoveConstraint[] nandMoveConstraints)
     {
         // Calculation goes from left to right so operator can never move beyond any operator that uses it
-        nandMoveConstraints[nandOperatorIndex - inputParameterCount].MinExclusiveUpperBound = Math.Min(nandMoveConstraints[nandOperatorIndex - inputParameterCount].MinExclusiveUpperBound, nandOperatorIndex);
+        nandMoveConstraints[nandOperatorIndex - inputParameterCount].MinExclusiveUpperBound = Math.Min(nandMoveConstraints[nandOperatorIndex - inputParameterCount].MinExclusiveUpperBound, consumerValueIndex);
     }
 
     private static void TryMoveOperator(Random random,
