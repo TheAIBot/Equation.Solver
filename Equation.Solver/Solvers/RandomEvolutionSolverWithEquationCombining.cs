@@ -19,6 +19,7 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
     private readonly NandChangerOnlyUsedOperators _nandChanger;
     private readonly EquationCombiner _equationCombiner;
     private readonly FullScorer _fullScorer;
+    private readonly EquationWithScore[] _familyEquationsWithScore = new EquationWithScore[3];
     private long _iterationCount;
     private EquationScore? _bestScore;
     [AllowNull]
@@ -124,7 +125,7 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
         var equationValues = _equationValues;
         var usedOperations = _usedOperations;
 
-        var familyEquationsWithScore = new EquationWithScore[3];
+        var familyEquationsWithScore = _familyEquationsWithScore;
 
         int competitionCount = (int)(_candidateCount * _candidateCompetitionRate);
         for (int i = 0; i < competitionCount; i++)
@@ -246,33 +247,11 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
 
     public void UpdateInternalStateAfterEquationChanges()
     {
-        if (_equationsWithScore == null ||
-            _equationValues == null)
+        if (_equationsWithScore == null)
         {
             throw new InvalidOperationException();
         }
 
-        var equationsWithScore = _equationsWithScore;
-        var equationValues = _equationValues;
-
-        EquationScore? newBestScore = null;
-        int? newBestScoreIndex = null;
-        for (int i = 0; i < equationsWithScore.Length; i++)
-        {
-            SlimEquationScore? equationScore = equationsWithScore[i].Score;
-            if (equationScore != null)
-            {
-                if (newBestScore == null ||
-                    newBestScore.Value.WrongBits > equationScore.Value.WrongBits)
-                {
-                    newBestScore = _fullScorer.ToFullScore(equationScore.Value, equationValues, equationsWithScore[i].Equation);
-                    newBestScoreIndex = i;
-                }
-            }
-        }
-
-        _bestScore = newBestScore ?? EquationScore.MaxScore;
-        _bestEquation = newBestScoreIndex != null ? equationsWithScore[newBestScoreIndex.Value].Equation.Copy() : null;
     }
 
     private void ReplaceWorseEquationWithBetterEquationAndEvolve(Random random,

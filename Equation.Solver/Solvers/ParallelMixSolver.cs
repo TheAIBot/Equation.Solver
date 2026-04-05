@@ -61,14 +61,16 @@ internal sealed class ParallelMixSolver : ISolver
             CancellationToken = cancellationToken
         };
 
-
-        await Parallel.ForAsync(0, chunkSolvers.Length, parallelOptions, async (i, cancellationToken) =>
+        var chunkSolversWithProblems = chunkSolvers.Zip(problems).ToArray();
+        await Parallel.ForEachAsync(chunkSolversWithProblems, parallelOptions, async (chunkSolverWithProblem, cancellationToken) =>
         {
-            await chunkSolvers[i].PrepareToSolveAsync(problems[i], cancellationToken);
+            await chunkSolverWithProblem.First.PrepareToSolveAsync(chunkSolverWithProblem.Second, cancellationToken);
         });
 
         var random = new Random(398906);
         EquationWithScore[] randomizedEquations = new EquationWithScore[chunkSolvers.Length];
+        // Assumes the array of equations never change over time
+        EquationWithScore[][] chunkEquations = chunkSolvers.Select(x => x.GetEquations()).ToArray();
 
         _bestScore = EquationScore.MaxScore;
         while (_bestScore?.WrongBits != 0 && !cancellationToken.IsCancellationRequested)
@@ -79,15 +81,14 @@ internal sealed class ParallelMixSolver : ISolver
                 return;
             }
 
-            await Parallel.ForAsync(0, chunkSolvers.Length, parallelOptions, async (x, cancellationToken) =>
+            await Parallel.ForEachAsync(chunkSolversWithProblems, parallelOptions, async (chunkSolverWithProblem, cancellationToken) =>
             {
                 for (int i = 0; i < _chunkSolverIterationsPerMix; i++)
                 {
-                    await chunkSolvers[x].SolveStepAsync(problems[x], cancellationToken);
+                    await chunkSolverWithProblem.First.SolveStepAsync(chunkSolverWithProblem.Second, cancellationToken);
                 }
             });
 
-            EquationWithScore[][] chunkEquations = chunkSolvers.Select(x => x.GetEquations()).ToArray();
             for (int equationIndex = 0; equationIndex < chunkEquations[0].Length; equationIndex++)
             {
                 if (random.NextSingle() > _chanceToMix)
@@ -108,11 +109,6 @@ internal sealed class ParallelMixSolver : ISolver
                     chunkEquations[chunkIndex][equationIndex] = randomizedEquations[chunkIndex];
                 }
             }
-
-            await Parallel.ForAsync(0, chunkSolvers.Length, parallelOptions, async (x, cancellationToken) =>
-            {
-                chunkSolvers[x].UpdateInternalStateAfterEquationChanges();
-            });
         }
     }
 
