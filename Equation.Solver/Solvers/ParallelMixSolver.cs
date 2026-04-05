@@ -1,4 +1,6 @@
 ﻿using Equation.Solver.Score;
+using System.Threading.Channels;
+using System.Threading.Tasks.Dataflow;
 
 namespace Equation.Solver.Solvers;
 
@@ -50,66 +52,135 @@ internal sealed class ParallelMixSolver : ISolver
         return bestReport;
     }
 
+    private sealed record ChunkExecutionData(IChunkSolver ChunkSolver,
+                                             EquationProblem EquationProblem,
+                                             Random Random,
+                                             HashSet<int> IndexesToInsertEquationsInto,
+                                             int OwnIndex);
+
+    private readonly record struct RandomlyOrderedEquation(ProblemEquation ProblemEquation, int Priority) : IComparable<RandomlyOrderedEquation>
+    {
+        public int CompareTo(RandomlyOrderedEquation other)
+        {
+            return Priority.CompareTo(other.Priority);
+        }
+    }
+
     public async Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
     {
         IChunkSolver[] chunkSolvers = _chunkSolvers;
         EquationProblem[] problems = _problems;
 
+        var chunkExecutionDatas = new ChunkExecutionData[chunkSolvers.Length];
+        for (int i = 0; i < chunkSolvers.Length; i++)
+        {
+            chunkExecutionDatas[i] = new ChunkExecutionData(chunkSolvers[i],
+                                                            problems[i],
+                                                            new Random(),
+                                                            new HashSet<int>(),
+                                                            i);
+        }
+
+        using var cancelSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+
         var parallelOptions = new ParallelOptions()
         {
             MaxDegreeOfParallelism = Environment.ProcessorCount - 2,
-            CancellationToken = cancellationToken
+            CancellationToken = cancelSource.Token
         };
 
-        var chunkSolversWithProblems = chunkSolvers.Zip(problems).ToArray();
-        await Parallel.ForEachAsync(chunkSolversWithProblems, parallelOptions, async (chunkSolverWithProblem, cancellationToken) =>
+        await Parallel.ForEachAsync(chunkExecutionDatas, parallelOptions, async (chunkExecutionData, cancellationToken) =>
         {
-            await chunkSolverWithProblem.First.PrepareToSolveAsync(chunkSolverWithProblem.Second, cancellationToken);
+            await chunkExecutionData.ChunkSolver.PrepareToSolveAsync(chunkExecutionData.EquationProblem, cancellationToken);
         });
 
-        var random = new Random(398906);
-        EquationWithScore[] randomizedEquations = new EquationWithScore[chunkSolvers.Length];
-        // Assumes the array of equations never change over time
-        EquationWithScore[][] chunkEquations = chunkSolvers.Select(x => x.GetEquations()).ToArray();
-
         _bestScore = EquationScore.MaxScore;
-        while (_bestScore?.WrongBits != 0 && !cancellationToken.IsCancellationRequested)
-        {
-            if (_bestScore?.WrongBits == 0 ||
-                cancellationToken.IsCancellationRequested)
-            {
-                return;
-            }
+        // Priority is used to randomize the order equations are taken from the channel.
+        // This should ensure that it is fairly random which chunk an equation goes to.
+        Channel<RandomlyOrderedEquation> sharedEquations = Channel.CreateUnboundedPrioritized<RandomlyOrderedEquation>();
 
-            await Parallel.ForEachAsync(chunkSolversWithProblems, parallelOptions, async (chunkSolverWithProblem, cancellationToken) =>
+        bool isRunning = true;
+        int equationsToShareEachIteration = (int)(_chanceToMix * chunkExecutionDatas[0].ChunkSolver.GetEquations().Length);
+        var bufferBlock = new BufferBlock<ChunkExecutionData>(new DataflowBlockOptions() { EnsureOrdered = false, CancellationToken = cancelSource.Token });
+        var parallelExecutor = new ActionBlock<ChunkExecutionData>(async chunkExecutionData =>
+        {
+            try
             {
+                if (_bestScore?.WrongBits == 0 ||
+                    cancelSource.Token.IsCancellationRequested)
+                {
+                    isRunning = false;
+                    bufferBlock.Complete();
+                    return;
+                }
+
+                EquationWithScore[] chunkEquations = chunkExecutionData.ChunkSolver.GetEquations();
+                int equationsToInsert = chunkExecutionData.IndexesToInsertEquationsInto.Count;
+                foreach (var equationIndex in chunkExecutionData.IndexesToInsertEquationsInto)
+                {
+                    chunkEquations[equationIndex].Equation = (await sharedEquations.Reader.ReadAsync(cancelSource.Token)).ProblemEquation;
+                    chunkEquations[equationIndex].Score = null;
+                }
+                chunkExecutionData.IndexesToInsertEquationsInto.Clear();
+
                 for (int i = 0; i < _chunkSolverIterationsPerMix; i++)
                 {
-                    await chunkSolverWithProblem.First.SolveStepAsync(chunkSolverWithProblem.Second, cancellationToken);
-                }
-            });
-
-            for (int equationIndex = 0; equationIndex < chunkEquations[0].Length; equationIndex++)
-            {
-                if (random.NextSingle() > _chanceToMix)
-                {
-                    continue;
+                    await chunkExecutionData.ChunkSolver.SolveStepAsync(chunkExecutionData.EquationProblem, cancelSource.Token);
                 }
 
-                for (int chunkIndex = 0; chunkIndex < chunkSolvers.Length; chunkIndex++)
+                for (int i = 0; i < equationsToShareEachIteration; i++)
                 {
-                    randomizedEquations[chunkIndex] = chunkEquations[chunkIndex][equationIndex];
-                    randomizedEquations[chunkIndex].Score = null;
+                    // Ensure the same index is not shared multiple times
+                    int randomEquationIndex;
+                    while (true)
+                    {
+                        randomEquationIndex = chunkExecutionData.Random.Next(0, chunkEquations.Length);
+                        if (chunkExecutionData.IndexesToInsertEquationsInto.Add(randomEquationIndex))
+                        {
+                            break;
+                        }
+                    }
+                    ProblemEquation equationToShare = chunkEquations[randomEquationIndex].Equation;
+                    // If sharing is not working correctly then this will make it fail faster
+                    chunkEquations[randomEquationIndex].Equation = null!;
+                    int priority = chunkExecutionData.Random.Next(0, 10000);
+                    await sharedEquations.Writer.WriteAsync(new RandomlyOrderedEquation(equationToShare, priority), cancelSource.Token);
                 }
 
-                random.Shuffle(randomizedEquations);
-
-                for (int chunkIndex = 0; chunkIndex < chunkSolvers.Length; chunkIndex++)
+                if (!await bufferBlock.SendAsync(chunkExecutionData, cancelSource.Token) &&
+                    isRunning)
                 {
-                    chunkEquations[chunkIndex][equationIndex] = randomizedEquations[chunkIndex];
+                    Console.WriteLine("Failed to send chunk execution data to buffer block for unknown reason.");
+                    await cancelSource.CancelAsync();
                 }
             }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                await cancelSource.CancelAsync();
+                throw;
+            }
+
+        }, new ExecutionDataflowBlockOptions()
+        {
+            EnsureOrdered = false,
+            MaxDegreeOfParallelism = Environment.ProcessorCount - 2,
+            CancellationToken = cancelSource.Token
+        });
+
+        using var link = bufferBlock.LinkTo(parallelExecutor, new DataflowLinkOptions() { PropagateCompletion = true });
+
+        foreach (var chunkExecutionData in chunkExecutionDatas)
+        {
+            if (!await bufferBlock.SendAsync(chunkExecutionData, cancelSource.Token))
+            {
+                Console.WriteLine("Failed to send chunk execution data to buffer block.");
+                await cancelSource.CancelAsync();
+            }
         }
+
+        await parallelExecutor.Completion;
     }
 
     public ISolver Copy()
