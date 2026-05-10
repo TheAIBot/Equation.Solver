@@ -7,6 +7,18 @@ internal sealed class Program
 {
     static async Task Main(string[] args)
     {
+        //await JsonLinesConverter.ConvertFile<SomeDatasetJsonFormat, InputProblemJsonFormat>(@"",
+        //                                                                                    @"",
+        //                                                                                    x =>
+        //                                                                                    {
+        //                                                                                        const string thinkingEnd = "</think>";
+        //                                                                                        return new InputProblemJsonFormat
+        //                                                                                        {
+        //                                                                                            Input = x.Input,
+        //                                                                                            Output = x.Output.AsSpan(x.Output.IndexOf(thinkingEnd) + thinkingEnd.Length).ToString()
+        //                                                                                        };
+        //                                                                                    });
+        //return;
         //(bool[] inputs, bool[] outputs)[] examples = CreateBiArgOperatorExamplesAsInts(1_000, 10, (x, y) => x + y).ToArray();
         //ProblemExample[] examples = ProblemExample.ConvertToExamples(examples).ToArray();
 
