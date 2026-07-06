@@ -15,8 +15,9 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
     private readonly float _candidateRandomEvolutionRate;
     private readonly float _candidateRandomCombiningRate;
     private readonly float _chanceOnlyMoveOperator;
-    private readonly NandMover _nandMover;
-    private readonly NandChangerOnlyUsedOperators _nandChanger;
+    private readonly int _moveCount;
+    private readonly MultiNandMover _multiNandMover;
+    private readonly NandChangerOffsetLimit _nandChanger;
     private readonly EquationCombiner _equationCombiner;
     private readonly FullScorer _fullScorer;
     private readonly EquationWithScore[] _familyEquationsWithScore = new EquationWithScore[3];
@@ -38,7 +39,8 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
                                                       int candidateOperatorEvolveCount,
                                                       float candidateRandomEvolutionRate,
                                                       float candidateRandomCombiningRate,
-                                                      float chanceOnlyMoveOperator)
+                                                      float chanceOnlyMoveOperator,
+                                                      int moveCount)
     {
         _parameterCount = parameterCount;
         _operatorCount = operatorCount;
@@ -49,8 +51,9 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
         _candidateRandomEvolutionRate = candidateRandomEvolutionRate;
         _candidateRandomCombiningRate = candidateRandomCombiningRate;
         _chanceOnlyMoveOperator = chanceOnlyMoveOperator;
-        _nandMover = new NandMover(parameterCount, operatorCount);
-        _nandChanger = new NandChangerOnlyUsedOperators();
+        _moveCount = moveCount;
+        _multiNandMover = new MultiNandMover(new NandMover(parameterCount, operatorCount), moveCount);
+        _nandChanger = new NandChangerOffsetLimit();
         _equationCombiner = new EquationCombiner(operatorCount, outputCount);
         _fullScorer = new FullScorer();
     }
@@ -101,7 +104,7 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
         for (int i = 0; i < equationsWithScore.Length; i++)
         {
             equationsWithScore[i] = new EquationWithScore(new ProblemEquation(_operatorCount, problem.OutputCount), null);
-            RandomSolver.Randomize(random, equationsWithScore[i].Equation, equationValues);
+            _nandChanger.RandomizeWholeEquation(random, equationsWithScore[i].Equation, equationValues);
         }
 
         _isRunning = true;
@@ -219,7 +222,8 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
                                                               _candidateOperatorEvolveCount,
                                                               _candidateRandomEvolutionRate,
                                                               _candidateRandomCombiningRate,
-                                                              _chanceOnlyMoveOperator);
+                                                              _chanceOnlyMoveOperator,
+                                                              _moveCount);
     }
 
     public IChunkSolver CopyChunkSolver()
@@ -232,7 +236,8 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
                                                               _candidateOperatorEvolveCount,
                                                               _candidateRandomEvolutionRate,
                                                               _candidateRandomCombiningRate,
-                                                              _chanceOnlyMoveOperator);
+                                                              _chanceOnlyMoveOperator,
+                                                              _moveCount);
     }
 
     public EquationWithScore[] GetEquations()
@@ -275,11 +280,11 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
     {
         if (random.NextSingle() < _chanceOnlyMoveOperator)
         {
-            _nandMover.MoveRandomNandOperator(random,
-                                              equationValues.InputParameterCount,
-                                              equationWithScore.Equation.OutputSize,
-                                              equationWithScore.Equation.NandOperators,
-                                              equationWithScore.Equation.OperatorsUsed);
+            _multiNandMover.MoveRandomNandOperators(random,
+                                                    equationValues.InputParameterCount,
+                                                    equationWithScore.Equation.OutputSize,
+                                                    equationWithScore.Equation.NandOperators,
+                                                    equationWithScore.Equation.OperatorsUsed);
         }
         else
         {

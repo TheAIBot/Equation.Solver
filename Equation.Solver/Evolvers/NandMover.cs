@@ -2,6 +2,37 @@
 
 namespace Equation.Solver.Evolvers;
 
+internal sealed class MultiNandMover
+{
+    private readonly NandMover _nandMover;
+    private readonly int _moveCount;
+
+    public MultiNandMover(NandMover nandMover, int moveCount)
+    {
+        _nandMover = nandMover;
+        _moveCount = moveCount;
+    }
+
+    public void MoveRandomNandOperators(Random random, int inputParameterCount, int outputCount, Span<NandOperator> operators, FastResetBoolArray operatorsUsed)
+    {
+        for (int i = 0; i < _moveCount; i++)
+        {
+            MoveResult moveResult = _nandMover.MoveRandomNandOperator(random, inputParameterCount, outputCount, operators, operatorsUsed);
+            if (moveResult == MoveResult.NoMovesAvailable)
+            {
+                break;
+            }
+        }
+    }
+}
+
+internal enum MoveResult
+{
+    OperatorMoved,
+    MoveFailed,
+    NoMovesAvailable
+}
+
 internal sealed class NandMover
 {
     private readonly NandMoveConstraint[] _nandMoveConstraints;
@@ -13,16 +44,16 @@ internal sealed class NandMover
         _nandsUsedMoveConstraints = new NandIndexMoveConstraint[_nandMoveConstraints.Length];
     }
 
-    public void MoveRandomNandOperator(Random random, int inputParameterCount, int outputCount, Span<NandOperator> operators, FastResetBoolArray operatorsUsed)
+    public MoveResult MoveRandomNandOperator(Random random, int inputParameterCount, int outputCount, Span<NandOperator> operators, FastResetBoolArray operatorsUsed)
     {
         Span<NandIndexMoveConstraint> nandIndexMoveConstraints = GetMoveConstraintsOfAllUsedNands(inputParameterCount, outputCount, operators, operatorsUsed);
         if (nandIndexMoveConstraints.Length == 0)
         {
-            return;
+            return MoveResult.NoMovesAvailable;
         }
 
         int moveConstraintToMove = random.Next(nandIndexMoveConstraints.Length);
-        TryMoveOperator(random, inputParameterCount, operators, nandIndexMoveConstraints, moveConstraintToMove, operatorsUsed);
+        return TryMoveOperator(random, inputParameterCount, operators, nandIndexMoveConstraints, moveConstraintToMove, operatorsUsed);
     }
 
     private Span<NandIndexMoveConstraint> GetMoveConstraintsOfAllUsedNands(int inputParameterCount, int outputCount, ReadOnlySpan<NandOperator> nandOperators, FastResetBoolArray operatorsUsed)
@@ -80,12 +111,12 @@ internal sealed class NandMover
         nandMoveConstraints[nandOperatorIndex - inputParameterCount].MinExclusiveUpperBound = Math.Min(nandMoveConstraints[nandOperatorIndex - inputParameterCount].MinExclusiveUpperBound, consumerValueIndex);
     }
 
-    private static void TryMoveOperator(Random random,
-                                        int inputParameterCount,
-                                        Span<NandOperator> operators,
-                                        Span<NandIndexMoveConstraint> nandIndexMoveConstraints,
-                                        int moveConstraintToMove,
-                                        FastResetBoolArray operatorsUsed)
+    private static MoveResult TryMoveOperator(Random random,
+                                              int inputParameterCount,
+                                              Span<NandOperator> operators,
+                                              Span<NandIndexMoveConstraint> nandIndexMoveConstraints,
+                                              int moveConstraintToMove,
+                                              FastResetBoolArray operatorsUsed)
     {
         NandIndexMoveConstraint moveConstraint = nandIndexMoveConstraints[moveConstraintToMove];
         int actualMinMoveIndex = moveConstraint.MoveConstraint.MaxExclusiveLowerBound + 1;
@@ -99,7 +130,7 @@ internal sealed class NandMover
         // one possible position is its current position.
         if (possiblePositions <= 1)
         {
-            return;
+            return nandIndexMoveConstraints.Length == 1 ? MoveResult.NoMovesAvailable : MoveResult.MoveFailed;
         }
 
         // Moveable space is defined by actualMinMoveIndex and actualMaxMoveIndex.
@@ -117,7 +148,7 @@ internal sealed class NandMover
         // All positions within the moveable space is used
         if (possiblePositions <= 0)
         {
-            return;
+            return nandIndexMoveConstraints.Length == 1 ? MoveResult.NoMovesAvailable : MoveResult.MoveFailed;
         }
 
         int moveableIndex = random.Next(0, possiblePositions);
@@ -156,6 +187,8 @@ internal sealed class NandMover
                 operators[i] = new NandOperator(operators[i].LeftValueIndex, moveTo);
             }
         }
+
+        return MoveResult.OperatorMoved;
     }
 
     private record struct NandMoveConstraint(int MaxExclusiveLowerBound, int MinExclusiveUpperBound);

@@ -1,4 +1,7 @@
-﻿using Equation.Solver.Solvers;
+﻿using Equation.Solver.DataSources.Formats.InputProblemFormat;
+using Equation.Solver.DataSources.Formats.SomeDatasetFormat;
+using Equation.Solver.DataSources.JsonLines;
+using Equation.Solver.Solvers;
 using System.Text;
 
 namespace Equation.Solver;
@@ -7,22 +10,24 @@ internal sealed class Program
 {
     static async Task Main(string[] args)
     {
-        //await JsonLinesConverter.ConvertFile<SomeDatasetJsonFormat, InputProblemJsonFormat>(@"",
-        //                                                                                    @"",
-        //                                                                                    x =>
-        //                                                                                    {
-        //                                                                                        const string thinkingEnd = "</think>";
-        //                                                                                        return new InputProblemJsonFormat
-        //                                                                                        {
-        //                                                                                            Input = x.Input,
-        //                                                                                            Output = x.Output.AsSpan(x.Output.IndexOf(thinkingEnd) + thinkingEnd.Length).ToString()
-        //                                                                                        };
-        //                                                                                    });
-        //return;
         //(bool[] inputs, bool[] outputs)[] examples = CreateBiArgOperatorExamplesAsInts(1_000, 10, (x, y) => x + y).ToArray();
         //ProblemExample[] examples = ProblemExample.ConvertToExamples(examples).ToArray();
 
-        (bool[] inputs, bool[] outputs)[] examples = CreateTextMathExamples(10_000, -10_000, 10_000).ToArray();
+        IAsyncEnumerable<InputProblemJsonFormat> jsonProblems = JsonLinesConverter.ReadJsonLines<SomeDatasetJsonFormat, InputProblemJsonFormat>(
+            @"",
+            x =>
+            {
+                const string thinkingEnd = "</think>";
+                return new InputProblemJsonFormat
+                {
+                    Input = x.Input,
+                    Output = x.Output.AsSpan(x.Output.IndexOf(thinkingEnd) + thinkingEnd.Length).ToString()
+                };
+            });
+
+        (bool[] inputs, bool[] outputs)[] examples = await CreateExamplesFromInputProblem(jsonProblems, 5).ToArrayAsync();
+
+        //(bool[] inputs, bool[] outputs)[] examples = CreateTextMathExamples(10_000, -10_000, 10_000).ToArray();
         examples = NormalizeExampleSizes(examples).ToArray();
         //examples = examples.Select(x => (x.inputs, x.outputs.Take(1).ToArray())).ToArray();
 
@@ -31,26 +36,43 @@ internal sealed class Program
         long totalOutputBits = examples.Sum(x => x.outputs.LongLength);
         Console.WriteLine($"Total output bits: {totalOutputBits:N0}");
 
-        //IExampleCluster exampleCluster = new RandomExampleCluster([
-        //    new RandomExampleClustering(1.0f, 50),
-        //    new RandomExampleClustering(0.3f, 20),
-        //]);
-        //var exampleClusters = exampleCluster.ToClusters(examples);
-        var exampleClusters = Enumerable.Repeat(examples, 50).ToArray();
-        IEnumerable<ProblemExample[]> problemClusters = exampleClusters.Select(x => ProblemExample.ConvertToExamples(x).ToArray());
+        var problemExamples = ProblemExample.ConvertToExamples(examples).ToArray();
 
-        var problems = problemClusters.Select(x => new EquationProblem(x)).ToArray();
+        IExampleCluster exampleCluster = new RandomExampleCluster([
+            new RandomExampleClustering(1.00f, 5),
+            new RandomExampleClustering(0.30f, 7),
+            new RandomExampleClustering(0.10f, 15),
+            new RandomExampleClustering(0.01f, 20),
+        ]);
+        List<ProblemExample>[] problemClusters = exampleCluster.ToClusters(problemExamples);
+        //IEnumerable<ProblemExample[]> problemClusters = exampleClusters.Select(x => ProblemExample.ConvertToExamples(x).ToArray());
+
+        //IEnumerable<ProblemExample[]> problemClusters = Enumerable.Repeat(ProblemExample.ConvertToExamples(examples).ToArray(), 40);
+        examples = null!;
+
+
+        var problems = problemClusters.Select(x => new EquationProblem(x.ToArray())).ToArray();
 
         var validationProblemExamples = ProblemExample.ConvertToExamples(validationRawExamples).ToArray();
         var validationProblem = new EquationProblem(validationProblemExamples);
+        validationProblemExamples = null!;
 
         //ISolver solver = new ParallelSolver(new RandomSolver(200));
         //ISolver solver = new ParallelSolver(new EvolveBestSolver(20000, 0.0002f));
         //ISolver solver = new ParallelSolver(new RandomEvolutionSolver(problem.ParameterCount, 1000, 100_000, 0.1f, 0.0025f, 0.0001f, 0.5f));
         //ISolver solver = new ParallelSolver(new RandomEvolutionSolverWithEquationCombining(problem.ParameterCount, 1000, problem.OutputCount, 100_000, 0.01f, 0.0025f, 0.001f, 0.001f, 0.5f));
         //ISolver solver = new RandomChunkEvolutionSolver(100, 10_000, new RandomChunkEvolver(200, 10_000, 0.1f, 0.02f, problem.ParameterCount, problem.OutputCount));
-        int operatorCount = 2_000;
-        ISolver solver = new ParallelMixSolver(new RandomEvolutionSolverWithEquationCombining(problems[0].ParameterCount, operatorCount, problems[0].OutputCount, 10_000, 0.01f, 2, 0.01f, 0.001f, 0.5f),
+        int operatorCount = 1000_000;
+        ISolver solver = new ParallelMixSolver(new RandomEvolutionSolverWithEquationCombining(problems[0].ParameterCount,
+                                                                                              operatorCount,
+                                                                                              problems[0].OutputCount,
+                                                                                              1_00,
+                                                                                              0.01f,
+                                                                                              10,
+                                                                                              0.01f,
+                                                                                              0.001f,
+                                                                                              0.001f,
+                                                                                              10),
                                                problems,
                                                problems[0],
                                                operatorCount,
@@ -58,6 +80,34 @@ internal sealed class Program
                                                0.02f);
         //await RunSolver(solver, problem);
         await RunSolver(solver, null!, validationProblem, operatorCount);
+    }
+
+    private static async IAsyncEnumerable<(bool[] inputs, bool[] outputs)> CreateExamplesFromInputProblem(IAsyncEnumerable<InputProblemJsonFormat> problems,
+                                                                                                          int examplesPerProblem)
+    {
+        var random = new Random(42);
+        HashSet<int> usedIndexes = [];
+
+        await foreach (var problem in problems)
+        {
+            usedIndexes.Clear();
+            int maxExampleCount = Math.Min(examplesPerProblem, problem.Output.Length);
+            int exampleCount = 0;
+            while (exampleCount < maxExampleCount)
+            {
+                int prefixLength = random.Next(0, problem.Output.Length);
+                if (!usedIndexes.Add(prefixLength))
+                {
+                    continue;
+                }
+
+                string exampleInput = problem.Input + problem.Output[..prefixLength];
+                char nextChar = problem.Output[prefixLength];
+
+                yield return (TextToBools(exampleInput), TextToBools(nextChar.ToString()));
+                exampleCount++;
+            }
+        }
     }
 
     private static async Task RunSolver(ISolver solver, EquationProblem problem, EquationProblem validationProblem, int operatorCount)

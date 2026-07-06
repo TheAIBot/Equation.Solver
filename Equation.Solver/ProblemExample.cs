@@ -4,7 +4,7 @@ namespace Equation.Solver;
 
 internal interface IExampleCluster
 {
-    List<(bool[] inputs, bool[] outputs)>[] ToClusters(IEnumerable<(bool[] inputs, bool[] outputs)> examples);
+    List<T>[] ToClusters<T>(IEnumerable<T> examples);
 }
 
 internal sealed class RandomExampleCluster : IExampleCluster
@@ -16,10 +16,10 @@ internal sealed class RandomExampleCluster : IExampleCluster
         _groupings = randomGroupings;
     }
 
-    public List<(bool[] inputs, bool[] outputs)>[] ToClusters(IEnumerable<(bool[] inputs, bool[] outputs)> examples)
+    public List<T>[] ToClusters<T>(IEnumerable<T> examples)
     {
         int totalClusterCount = _groupings.Sum(x => x.ClusterssWithThisChance);
-        var exampleClusters = new List<(bool[] inputs, bool[] outputs)>[totalClusterCount];
+        var exampleClusters = new List<T>[totalClusterCount];
 
         for (int i = 0; i < exampleClusters.Length; i++)
         {
@@ -71,6 +71,8 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
 
     private static IEnumerable<(Vector256<int>[] values, Vector256<int> mask)> ConvertToExampleVectors(IEnumerable<(int[] values, int mask)> examplesAsInts)
     {
+        var exampleInt32x8 = new int[Vector256<int>.Count];
+
         int? bitLength = null;
         foreach ((int[][] exampleChunk, int[] masks) in examplesAsInts.Chunk(Vector256<int>.Count).Select(x => (x.Select(y => y.values).ToArray(), x.Select(y => y.mask).ToArray())))
         {
@@ -80,8 +82,7 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
             }
             AssertAllArraysAreSameLength(exampleChunk, bitLength.Value);
 
-            var exampleVectors = new List<Vector256<int>>();
-            var exampleInt32x8 = new int[Vector256<int>.Count];
+            var exampleVectors = new Vector256<int>[exampleChunk[0].Length];
             for (int i = 0; i < exampleChunk[0].Length; i++)
             {
                 Array.Clear(exampleInt32x8);
@@ -90,7 +91,7 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
                     exampleInt32x8[x] = exampleChunk[x][i];
                 }
 
-                exampleVectors.Add(Vector256.Create(exampleInt32x8));
+                exampleVectors[i] = Vector256.Create(exampleInt32x8);
             }
 
             Array.Clear(exampleInt32x8);
@@ -100,7 +101,7 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
             }
             var mask = Vector256.Create(exampleInt32x8);
 
-            yield return (exampleVectors.ToArray(), mask);
+            yield return (exampleVectors, mask);
         }
     }
 
