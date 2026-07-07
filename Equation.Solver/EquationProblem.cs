@@ -5,14 +5,14 @@ namespace Equation.Solver;
 
 internal sealed class EquationProblem
 {
-    private readonly ProblemExample[] _examples;
-    public int ParameterCount => _examples[0].Input.Count;
-    public int OutputCount => _examples[0].Output.Outputs.Length;
+    private readonly ProblemCollection _problemCollection;
+    public int ParameterCount => _problemCollection.Examples[0].Input.Indexes.Length;
+    public int OutputCount => _problemCollection.Examples[0].Output.Outputs.Length;
 
-    public EquationProblem(ProblemExample[] examples)
+    public EquationProblem(ProblemCollection problemCollection)
     {
-        ArgumentOutOfRangeException.ThrowIfZero(examples.Length);
-        _examples = examples;
+        ArgumentOutOfRangeException.ThrowIfZero(problemCollection.Examples.Length);
+        _problemCollection = problemCollection;
     }
 
     public SlimEquationScore EvaluateEquation(ProblemEquation equation, EquationValues equationValues)
@@ -36,23 +36,23 @@ internal sealed class EquationProblem
             throw new ArgumentException($"Must be the same length as {nameof(OutputCount)}", nameof(bitErrors));
         }
 
-        for (int i = 0; i < _examples.Length; i++)
+        for (int i = 0; i < _problemCollection.Examples.Length; i++)
         {
-            ProblemExample example = _examples[i];
-            ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues, example);
+            ProblemExample example = _problemCollection.Examples[i];
+            ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues, example, _problemCollection);
             example.Output.CalculateDifference(equationResult, bitErrors);
         }
     }
 
     public Vector256<int>[] GetEquationResults(ProblemEquation equation, EquationValues equationValues)
     {
-        Vector256<int>[] outputResults = new Vector256<int>[_examples.Length * equation.OutputSize];
+        Vector256<int>[] outputResults = new Vector256<int>[_problemCollection.Examples.Length * equation.OutputSize];
 
         int outputResultIndex = 0;
-        for (int i = 0; i < _examples.Length; i++)
+        for (int i = 0; i < _problemCollection.Examples.Length; i++)
         {
-            ProblemExample example = _examples[i];
-            ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues, example);
+            ProblemExample example = _problemCollection.Examples[i];
+            ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues, example, _problemCollection);
             for (int z = 0; z < equationResult.Length; z++)
             {
                 outputResults[outputResultIndex++] = equationResult[z];
@@ -64,10 +64,10 @@ internal sealed class EquationProblem
 
     public IEnumerable<bool> GetExampleCorrectness(ProblemEquation equation, EquationValues equationValues)
     {
-        for (int i = 0; i < _examples.Length; i++)
+        for (int i = 0; i < _problemCollection.Examples.Length; i++)
         {
-            ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues, _examples[i]);
-            bool[] correctness = _examples[i].Output.GetExampleCorrectness(equationResult);
+            ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues, _problemCollection.Examples[i], _problemCollection);
+            bool[] correctness = _problemCollection.Examples[i].Output.GetExampleCorrectness(equationResult);
             foreach (bool correct in correctness)
             {
                 yield return correct;

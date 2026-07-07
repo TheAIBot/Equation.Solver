@@ -21,10 +21,9 @@ internal sealed class ProblemEquation
         _outputSize = outputSize;
     }
 
-    public unsafe ReadOnlySpan<Vector256<int>> Calculate(EquationValues equationValues, ProblemExample example)
+    public unsafe ReadOnlySpan<Vector256<int>> Calculate(EquationValues equationValues, ProblemExample example, ProblemCollection problemCollection)
     {
-        int inputCount = example.Input.Count;
-        int* inputs = (int*)example.Input.Inputs;
+        int inputCount = example.Input.Indexes.Length * Vector256<int>.Count;
 
         Vector256<int>* results = equationValues.OperatorResults;
         int* allValues = (int*)equationValues.OperatorResults;
@@ -33,17 +32,21 @@ internal sealed class ProblemEquation
         NandOperator[] nandOperators = _nandOperators;
         FastResetBoolArray operatorsUsed = _operatorsUsed;
 
-        for (int i = 0; i < nandOperators.Length; i++)
+        fixed (int* inputIndexes = example.Input.Indexes)
         {
-            if (!operatorsUsed[i])
+            int* inputVectors = (int*)problemCollection.Vectors;
+
+            for (int i = 0; i < nandOperators.Length; i++)
             {
-                continue;
+                if (!operatorsUsed[i])
+                {
+                    continue;
+                }
+
+                var result = nandOperators[i].Nand(allValues, inputIndexes, inputVectors, inputCount);
+                result.StoreAligned((int*)(results + i));
             }
-
-            var result = nandOperators[i].Nand(allValues, inputs, inputCount);
-            result.StoreAligned((int*)(results + i));
         }
-
 
         return new Span<Vector256<int>>(results + equationValues._size - _outputSize, _outputSize);
     }

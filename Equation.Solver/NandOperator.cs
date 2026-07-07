@@ -21,14 +21,32 @@ internal readonly struct NandOperator
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly unsafe Vector256<int> Nand(int* allValues, int* inputs, int inputCount)
+    public readonly unsafe Vector256<int> Nand(int* allValues, int* inputIndexes, int* inputVectors, int inputCount)
     {
-        int* leftInput = _leftValueIndex < inputCount * Vector256<int>.Count ? inputs : allValues;
-        Vector256<int> opLeft = Vector256.LoadAligned(leftInput + _leftValueIndex);
+        int* leftValue;
+        if (_leftValueIndex < inputCount)
+        {
+            int vectorIndex = inputIndexes[_leftValueIndex / (uint)Vector256<int>.Count];
+            leftValue = inputVectors + vectorIndex * Vector256<int>.Count;
+        }
+        else
+        {
+            leftValue = allValues + _leftValueIndex;
+        }
 
-        int* rightInput = _rightValueIndex < inputCount * Vector256<int>.Count ? inputs : allValues;
-        Vector256<int> opRight = Vector256.LoadAligned(rightInput + _rightValueIndex);
+        int* rightValue;
+        if (_rightValueIndex < inputCount)
+        {
+            int vectorIndex = inputIndexes[_rightValueIndex / (uint)Vector256<int>.Count];
+            rightValue = inputVectors + vectorIndex * Vector256<int>.Count;
+        }
+        else
+        {
+            rightValue = allValues + _rightValueIndex;
+        }
 
+        Vector256<int> opLeft = Vector256.LoadAligned(leftValue);
+        Vector256<int> opRight = Vector256.LoadAligned(rightValue);
         return ~(opLeft & opRight);
     }
 }

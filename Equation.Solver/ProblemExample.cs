@@ -52,16 +52,40 @@ internal readonly record struct RandomExampleClustering(float PercentOfAllProble
 
 internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput Output)
 {
-    public static IEnumerable<ProblemExample> ConvertToExamples(IEnumerable<(bool[] inputs, bool[] outputs)> examples)
+    public static ProblemCollection ConvertToExamples(IEnumerable<(bool[] inputs, bool[] outputs)> examples)
     {
         var inputs = ConvertToExampleVectors(examples.Select(x => x.inputs));
         var outputs = ConvertToExampleVectors(examples.Select(x => x.outputs));
+
+        var vectorIndexes = new Dictionary<Vector256<int>, int>();
+        var problemExamples = new List<ProblemExample>();
+
         foreach (((Vector256<int>[] inputs, Vector256<int> mask) input, (Vector256<int>[] outputs, Vector256<int> mask) output) exampleVectors in inputs.Zip(outputs))
         {
-            var problemInput = new ProblemInput(exampleVectors.input.inputs);
+            var inputIndexes = new int[exampleVectors.input.inputs.Length];
+            for (int i = 0; i < exampleVectors.input.inputs.Length; i++)
+            {
+                Vector256<int> vector = exampleVectors.input.inputs[i];
+                if (!vectorIndexes.TryGetValue(vector, out int index))
+                {
+                    index = vectorIndexes.Count;
+                    vectorIndexes[vector] = index;
+                }
+                inputIndexes[i] = index;
+            }
+
+            var problemInput = new ProblemInput(inputIndexes);
             var problemOutput = new ProblemOutput(exampleVectors.output.outputs, exampleVectors.output.mask);
-            yield return new ProblemExample(problemInput, problemOutput);
+            problemExamples.Add(new ProblemExample(problemInput, problemOutput));
         }
+
+        var uniqueVectors = new Vector256<int>[vectorIndexes.Count];
+        foreach (var pair in vectorIndexes)
+        {
+            uniqueVectors[pair.Value] = pair.Key;
+        }
+
+        return ProblemCollection.Create(problemExamples.ToArray(), uniqueVectors);
     }
 
     private static IEnumerable<(Vector256<int>[] values, Vector256<int> mask)> ConvertToExampleVectors(IEnumerable<bool[]> examples)

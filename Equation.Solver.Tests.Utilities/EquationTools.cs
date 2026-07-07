@@ -51,10 +51,10 @@ internal static class EquationTools
 
     public static ProblemParts CreateUnsetEquationWithExamples((bool[], bool[])[] problemExamples, int operatorCount)
     {
-        var examples = ProblemExample.ConvertToExamples(problemExamples).ToArray();
-        var equationValues = new EquationValues(examples[0].Input.Count, operatorCount);
-        var equation = new ProblemEquation(operatorCount, examples[0].Output.Count);
+        var problemCollection = ProblemExample.ConvertToExamples(problemExamples);
+        var equationValues = new EquationValues(problemCollection.Examples[0].Input.Indexes.Length, operatorCount);
+        var equation = new ProblemEquation(operatorCount, problemCollection.Examples[0].Output.Count);
 
-        return new ProblemParts(equation, equationValues, examples, new EquationProblem(examples));
+        return new ProblemParts(equation, equationValues, problemCollection, new EquationProblem(problemCollection));
     }
 }
