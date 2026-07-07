@@ -52,13 +52,23 @@ internal readonly record struct RandomExampleClustering(float PercentOfAllProble
 
 internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput Output)
 {
-    public static ProblemCollection ConvertToExamples(IEnumerable<(bool[] inputs, bool[] outputs)> examples)
+    public static ProblemCollection ConvertToExamples((bool[] inputs, bool[] outputs)[] examples)
     {
-        var inputs = ConvertToExampleVectors(examples.Select(x => x.inputs));
-        var outputs = ConvertToExampleVectors(examples.Select(x => x.outputs));
+        int maxInputLength = -1;
+        int maxOutputLength = -1;
+        for (int i = 0; i < examples.Length; i++)
+        {
+            maxInputLength = Math.Max(maxInputLength, examples[i].inputs.Length);
+            maxOutputLength = Math.Max(maxOutputLength, examples[i].outputs.Length);
+        }
+        var inputs = ConvertToExampleVectors(examples.Select(x => x.inputs), maxInputLength);
+        var outputs = ConvertToExampleVectors(examples.Select(x => x.outputs), maxOutputLength);
 
         var vectorIndexes = new Dictionary<Vector256<int>, int>();
         var problemExamples = new List<ProblemExample>();
+
+        int totalVectors = 0;
+        int deduplicatedVectors = 0;
 
         foreach (((Vector256<int>[] inputs, Vector256<int> mask) input, (Vector256<int>[] outputs, Vector256<int> mask) output) exampleVectors in inputs.Zip(outputs))
         {
@@ -70,6 +80,11 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
                 {
                     index = vectorIndexes.Count;
                     vectorIndexes[vector] = index;
+                    totalVectors++;
+                }
+                else
+                {
+                    deduplicatedVectors++;
                 }
                 inputIndexes[i] = index;
             }
@@ -78,6 +93,9 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
             var problemOutput = new ProblemOutput(exampleVectors.output.outputs, exampleVectors.output.mask);
             problemExamples.Add(new ProblemExample(problemInput, problemOutput));
         }
+
+        Console.WriteLine($"Total vectors: {totalVectors:N0}");
+        Console.WriteLine($"Deduplicated vectors: {deduplicatedVectors:N0}");
 
         var uniqueVectors = new Vector256<int>[vectorIndexes.Count];
         foreach (var pair in vectorIndexes)
@@ -88,83 +106,39 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
         return ProblemCollection.Create(problemExamples.ToArray(), uniqueVectors);
     }
 
-    private static IEnumerable<(Vector256<int>[] values, Vector256<int> mask)> ConvertToExampleVectors(IEnumerable<bool[]> examples)
+    private static IEnumerable<(Vector256<int>[] values, Vector256<int> mask)> ConvertToExampleVectors(IEnumerable<bool[]> examples, int maxExampleLength)
     {
-        return ConvertToExampleVectors(ConvertToExampleInts(examples));
-    }
-
-    private static IEnumerable<(Vector256<int>[] values, Vector256<int> mask)> ConvertToExampleVectors(IEnumerable<(int[] values, int mask)> examplesAsInts)
-    {
+        const int intBitCount = 32;
         var exampleInt32x8 = new int[Vector256<int>.Count];
+        var exampleMask32x8 = new int[Vector256<int>.Count];
 
-        int? bitLength = null;
-        foreach ((int[][] exampleChunk, int[] masks) in examplesAsInts.Chunk(Vector256<int>.Count).Select(x => (x.Select(y => y.values).ToArray(), x.Select(y => y.mask).ToArray())))
+        foreach (bool[][] exampleChunk in examples.Chunk(Vector256<int>.Count * intBitCount))
         {
-            if (!bitLength.HasValue)
-            {
-                bitLength = exampleChunk[0].Length;
-            }
-            AssertAllArraysAreSameLength(exampleChunk, bitLength.Value);
+            Array.Clear(exampleMask32x8);
 
-            var exampleVectors = new Vector256<int>[exampleChunk[0].Length];
-            for (int i = 0; i < exampleChunk[0].Length; i++)
+            var exampleVectors = new Vector256<int>[maxExampleLength];
+            for (int i = 0; i < maxExampleLength; i++)
             {
                 Array.Clear(exampleInt32x8);
                 for (int x = 0; x < exampleChunk.Length; x++)
                 {
-                    exampleInt32x8[x] = exampleChunk[x][i];
+                    bool[] example = exampleChunk[x];
+                    if (i < example.Length)
+                    {
+                        exampleInt32x8[x / intBitCount] |= (example[i] ? 1 : 0) << (x % intBitCount);
+
+                        if (i == 0)
+                        {
+                            exampleMask32x8[x / intBitCount] |= 1 << (x % intBitCount);
+                        }
+                    }
                 }
 
                 exampleVectors[i] = Vector256.Create(exampleInt32x8);
             }
 
-            Array.Clear(exampleInt32x8);
-            for (int x = 0; x < exampleChunk.Length; x++)
-            {
-                exampleInt32x8[x] = masks[x];
-            }
-            var mask = Vector256.Create(exampleInt32x8);
-
+            var mask = Vector256.Create(exampleMask32x8);
             yield return (exampleVectors, mask);
-        }
-    }
-
-    private static IEnumerable<(int[] values, int mask)> ConvertToExampleInts(IEnumerable<bool[]> examples)
-    {
-        int? bitLength = null;
-        const int intBitCount = 32;
-        foreach (bool[][] boolExamples in examples.Chunk(intBitCount))
-        {
-            if (!bitLength.HasValue)
-            {
-                bitLength = boolExamples[0].Length;
-            }
-            AssertAllArraysAreSameLength(boolExamples, bitLength.Value);
-
-
-            int[] exampleInts = new int[boolExamples[0].Length];
-            int mask = 0;
-            for (int i = 0; i < boolExamples.Length; i++)
-            {
-                for (int x = 0; x < boolExamples[0].Length; x++)
-                {
-                    exampleInts[x] |= (boolExamples[i][x] ? 1 : 0) << i;
-                }
-                mask |= 1 << i;
-            }
-
-            yield return (exampleInts, mask);
-        }
-    }
-
-    private static void AssertAllArraysAreSameLength<T>(T[][] arrays, int expectedLength)
-    {
-        for (int i = 0; i < arrays.Length; i++)
-        {
-            if (arrays[i].Length != expectedLength)
-            {
-                throw new InvalidOperationException("Not all arrays has the same length.");
-            }
         }
     }
 }

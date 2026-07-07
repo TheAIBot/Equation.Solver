@@ -2,6 +2,8 @@
 using Equation.Solver.DataSources.Formats.SomeDatasetFormat;
 using Equation.Solver.DataSources.JsonLines;
 using Equation.Solver.Solvers;
+using System.Numerics;
+using System.Runtime.Intrinsics;
 using System.Text;
 
 namespace Equation.Solver;
@@ -24,15 +26,13 @@ internal sealed class Program
 
         (bool[] inputs, bool[] outputs)[] examples = await CreateExamplesFromInputProblem(jsonProblems, 5).ToArrayAsync();
 
-        examples = NormalizeExampleSizes(examples).ToArray();
 
-        long totalOutputBits = examples.Sum(x => x.outputs.LongLength);
-        Console.WriteLine($"Total output bits: {totalOutputBits:N0}");
 
         ProblemCollection fullProblemCollection = ProblemExample.ConvertToExamples(examples);
         examples = null!;
 
         (ProblemCollection solvingProblemCollection, ProblemCollection validationProblemCollection) = SplitSolvingAndValidationExamples(fullProblemCollection);
+        Console.WriteLine($"Total output bits: {solvingProblemCollection.Examples.Sum(x => x.Output.Outputs.LongLength * PopCount(x.Output.MaskBitsUsed)):N0}");
 
         IExampleCluster exampleCluster = new RandomExampleCluster([
             new RandomExampleClustering(1.00f, 5),
@@ -68,6 +68,17 @@ internal sealed class Program
                                                30,
                                                0.02f);
         await RunSolver(solver, null!, validationProblem, operatorCount);
+    }
+
+    private static int PopCount(Vector256<int> value)
+    {
+        int count = 0;
+        for (int i = 0; i < Vector256<int>.Count; i++)
+        {
+            count += BitOperations.PopCount((uint)value.GetElement(i));
+        }
+
+        return count;
     }
 
     private static async IAsyncEnumerable<(bool[] inputs, bool[] outputs)> CreateExamplesFromInputProblem(IAsyncEnumerable<InputProblemJsonFormat> problems,
@@ -195,25 +206,6 @@ internal sealed class Program
             }
 
             yield return (inputs, outputs);
-        }
-    }
-
-    private static IEnumerable<(bool[] inputs, bool[] outputs)> NormalizeExampleSizes(IEnumerable<(bool[] inputs, bool[] outputs)> examples)
-    {
-        int maxInputSize = -1;
-        int maxOutputSize = -1;
-        foreach (var example in examples)
-        {
-            maxInputSize = Math.Max(maxInputSize, example.inputs.Length);
-            maxOutputSize = Math.Max(maxOutputSize, example.outputs.Length);
-        }
-        foreach (var example in examples)
-        {
-            var input = example.inputs;
-            Array.Resize(ref input, maxInputSize);
-            var output = example.outputs;
-            Array.Resize(ref output, maxOutputSize);
-            yield return (input, output);
         }
     }
 
