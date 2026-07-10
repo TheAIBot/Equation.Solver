@@ -1,4 +1,5 @@
 ﻿using System.Runtime.Intrinsics;
+using static Equation.Solver.Program;
 
 namespace Equation.Solver;
 
@@ -92,6 +93,69 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
             var problemInput = new ProblemInput(inputIndexes);
             var problemOutput = new ProblemOutput(exampleVectors.output.outputs, exampleVectors.output.mask);
             problemExamples.Add(new ProblemExample(problemInput, problemOutput));
+        }
+
+        Console.WriteLine($"Total vectors: {totalVectors:N0}");
+        Console.WriteLine($"Deduplicated vectors: {deduplicatedVectors:N0}");
+
+        var uniqueVectors = new Vector256<int>[vectorIndexes.Count];
+        foreach (var pair in vectorIndexes)
+        {
+            uniqueVectors[pair.Value] = pair.Key;
+        }
+
+        return ProblemCollection.Create(problemExamples.ToArray(), uniqueVectors);
+    }
+
+    public static ProblemCollection ConvertToExamples(ExampleGenerator[] examples, int examplePrefixCount)
+    {
+        int maxInputLength = -1;
+        int maxOutputLength = -1;
+        for (int i = 0; i < examples.Length; i++)
+        {
+            maxInputLength = Math.Max(maxInputLength, examples[i].MaxInputLength);
+            maxOutputLength = Math.Max(maxOutputLength, examples[i].MaxOutputLength);
+        }
+
+        Array.Sort(examples, (x, y) => x.MaxInputLength - y.MaxInputLength);
+
+
+        var vectorIndexes = new Dictionary<Vector256<int>, int>();
+        var problemExamples = new List<ProblemExample>();
+
+        int totalVectors = 0;
+        int deduplicatedVectors = 0;
+
+        const int intBitCount = 32;
+        int bitsPerVector = Vector256<int>.Count * intBitCount;
+        foreach (ExampleGenerator[] exampleChunk in examples.Chunk(bitsPerVector))
+        {
+            for (int examplePrefixIndex = 0; examplePrefixIndex < examplePrefixCount; examplePrefixIndex++)
+            {
+                (Vector256<int>[] inputValues, Vector256<int> _) = ConvertToExampleVectors(exampleChunk.Select(x => x.GetInput(examplePrefixIndex)), maxInputLength).Single();
+                (Vector256<int>[] outputValues, Vector256<int> outputMask) = ConvertToExampleVectors(exampleChunk.Select(x => x.GetOutput(examplePrefixIndex)), maxOutputLength).Single();
+
+                var inputIndexes = new int[maxInputLength];
+                for (int inputVectorIndex = 0; inputVectorIndex < maxInputLength; inputVectorIndex++)
+                {
+                    Vector256<int> vector = inputValues[inputVectorIndex];
+                    if (!vectorIndexes.TryGetValue(vector, out int index))
+                    {
+                        index = vectorIndexes.Count;
+                        vectorIndexes[vector] = index;
+                        totalVectors++;
+                    }
+                    else
+                    {
+                        deduplicatedVectors++;
+                    }
+                    inputIndexes[inputVectorIndex] = index;
+                }
+
+                var problemInput = new ProblemInput(inputIndexes);
+                var problemOutput = new ProblemOutput(outputValues, outputMask);
+                problemExamples.Add(new ProblemExample(problemInput, problemOutput));
+            }
         }
 
         Console.WriteLine($"Total vectors: {totalVectors:N0}");

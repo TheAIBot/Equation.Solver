@@ -24,11 +24,12 @@ internal sealed class Program
                 };
             });
 
-        (bool[] inputs, bool[] outputs)[] examples = await CreateExamplesFromInputProblem(jsonProblems, 5).ToArrayAsync();
+        const int prefixExampleCount = 5;
+        ExampleGenerator[] examples = await CreateExamplesFromInputProblem(jsonProblems, prefixExampleCount).ToArrayAsync();
 
 
 
-        ProblemCollection fullProblemCollection = ProblemExample.ConvertToExamples(examples);
+        ProblemCollection fullProblemCollection = ProblemExample.ConvertToExamples(examples, prefixExampleCount);
         examples = null!;
 
         (ProblemCollection solvingProblemCollection, ProblemCollection validationProblemCollection) = SplitSolvingAndValidationExamples(fullProblemCollection);
@@ -36,9 +37,9 @@ internal sealed class Program
 
         IExampleCluster exampleCluster = new RandomExampleCluster([
             new RandomExampleClustering(1.00f, 5),
-            new RandomExampleClustering(0.30f, 7),
+            new RandomExampleClustering(0.30f, 11),
             new RandomExampleClustering(0.10f, 15),
-            new RandomExampleClustering(0.01f, 20),
+            //new RandomExampleClustering(0.01f, 20),
         ]);
         List<ProblemExample>[] problemClusters = exampleCluster.ToClusters(solvingProblemCollection.Examples);
 
@@ -55,9 +56,9 @@ internal sealed class Program
         ISolver solver = new ParallelMixSolver(new RandomEvolutionSolverWithEquationCombining(problems[0].ParameterCount,
                                                                                               operatorCount,
                                                                                               problems[0].OutputCount,
-                                                                                              1_000,
+                                                                                              20_0,
                                                                                               0.01f,
-                                                                                              10,
+                                                                                              1,
                                                                                               0.01f,
                                                                                               0.001f,
                                                                                               0.001f,
@@ -81,8 +82,8 @@ internal sealed class Program
         return count;
     }
 
-    private static async IAsyncEnumerable<(bool[] inputs, bool[] outputs)> CreateExamplesFromInputProblem(IAsyncEnumerable<InputProblemJsonFormat> problems,
-                                                                                                          int examplesPerProblem)
+    private static async IAsyncEnumerable<ExampleGenerator> CreateExamplesFromInputProblem(IAsyncEnumerable<InputProblemJsonFormat> problems,
+                                                                                           int examplesPerProblem)
     {
         var random = new Random(42);
         HashSet<int> usedIndexes = [];
@@ -92,6 +93,7 @@ internal sealed class Program
             usedIndexes.Clear();
             int maxExampleCount = Math.Min(examplesPerProblem, problem.Output.Length);
             int exampleCount = 0;
+            int[] prefixLengths = new int[examplesPerProblem];
             while (exampleCount < maxExampleCount)
             {
                 int prefixLength = random.Next(0, problem.Output.Length);
@@ -100,12 +102,21 @@ internal sealed class Program
                     continue;
                 }
 
-                string exampleInput = problem.Input + problem.Output[..prefixLength];
-                char nextChar = problem.Output[prefixLength];
-
-                yield return (TextToBools(exampleInput), TextToBools(nextChar.ToString()));
+                prefixLengths[exampleCount] = prefixLength;
                 exampleCount++;
             }
+
+            // If output isn't large enough for the number of duplicates then
+            // the last examples are just duplicated to fill it out.
+            // This simplifies later code since all generators has the same length.
+            while (exampleCount + 1 < prefixLengths.Length)
+            {
+                prefixLengths[exampleCount + 1] = prefixLengths[exampleCount];
+                exampleCount++;
+            }
+
+            Array.Sort(prefixLengths);
+            yield return new ExampleGenerator(problem.Input, problem.Output, prefixLengths);
         }
     }
 
@@ -239,7 +250,7 @@ internal sealed class Program
         }
     }
 
-    private static bool[] TextToBools(string text)
+    internal static bool[] TextToBools(string text)
     {
         byte[] utf8Bytes = Encoding.UTF8.GetBytes(text);
         List<bool> bools = [];
