@@ -117,7 +117,7 @@ internal sealed class Program
             Console.WriteLine();
             Console.WriteLine($"Iterations: {report.IterationCount:N0}");
             Console.WriteLine($"Iterations/s: {averageIterationsPerSecond.GetAverage():N0}");
-            Console.WriteLine($"Best score: {report.BestScore:N0}");
+            Console.WriteLine($"Best score: {report.BestScore}");
             Console.WriteLine($"Best score length: {report.BestScore.MaxSequentialNandGates:N0}");
             var validationResult = CountCorrectExamples(validationProblem, report.BestEquation, validationEquationValues);
             Console.WriteLine($"Validation examples correct: {validationResult.Correct:N0}/{validationResult.Total:N0}");
