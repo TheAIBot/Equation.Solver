@@ -24,13 +24,13 @@ internal sealed class Program
                 };
             });
 
-        const int prefixExampleCount = 5;
+        const int prefixExampleCount = 20;
         ExampleGenerator[] examples = await CreateExamplesFromInputProblem(jsonProblems, prefixExampleCount).ToArrayAsync();
 
         ProblemCollection fullProblemCollection = ProblemExample.ConvertToExamples(examples, prefixExampleCount);
         examples = null!;
 
-        (ProblemCollection solvingProblemCollection, ProblemCollection validationProblemCollection) = SplitSolvingAndValidationExamples(fullProblemCollection);
+        (ProblemCollection solvingProblemCollection, ProblemCollection validationProblemCollection) = SplitSolvingAndValidationExamples(fullProblemCollection, 0.02f);
         Console.WriteLine($"Total output bits: {solvingProblemCollection.Examples.Sum(x => x.Output.Outputs.LongLength * PopCount(x.Output.MaskBitsUsed)):N0}");
 
         IExampleCluster exampleCluster = new RandomExampleCluster([
@@ -50,7 +50,7 @@ internal sealed class Program
         //ISolver solver = new ParallelSolver(new RandomEvolutionSolver(problem.ParameterCount, 1000, 100_000, 0.1f, 0.0025f, 0.0001f, 0.5f));
         //ISolver solver = new ParallelSolver(new RandomEvolutionSolverWithEquationCombining(problem.ParameterCount, 1000, problem.OutputCount, 100_000, 0.01f, 0.0025f, 0.001f, 0.001f, 0.5f));
         //ISolver solver = new RandomChunkEvolutionSolver(100, 10_000, new RandomChunkEvolver(200, 10_000, 0.1f, 0.02f, problem.ParameterCount, problem.OutputCount));
-        int operatorCount = 30_000;
+        int operatorCount = 20_000;
         ISolver solver = new ParallelMixSolver(new RandomEvolutionSolverWithEquationCombining(problems[0].ParameterCount,
                                                                                               operatorCount,
                                                                                               problems[0].OutputCount,
@@ -154,9 +154,9 @@ internal sealed class Program
         return (correct, total);
     }
 
-    private static (ProblemCollection Solving, ProblemCollection Validation) SplitSolvingAndValidationExamples(ProblemCollection problemCollection)
+    private static (ProblemCollection Solving, ProblemCollection Validation) SplitSolvingAndValidationExamples(ProblemCollection problemCollection, float examplesForValidationPercent)
     {
-        int validationCount = problemCollection.Examples.Length / 10;
+        int validationCount = (int)(problemCollection.Examples.Length * examplesForValidationPercent);
         var splitRandom = new Random(42);
         var shuffled = problemCollection.Examples.OrderBy(_ => splitRandom.Next()).ToArray();
         var validationExamples = shuffled[..validationCount];

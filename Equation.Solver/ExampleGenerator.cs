@@ -11,18 +11,21 @@ internal readonly record struct ExampleGenerator
     private readonly Rune[] _output;
     private readonly int[] _outputPrefixLengths;
 
+    public int UniqueExampleCount { get; }
     public int MaxInputLength => (_inputUtf8ByteLength + CountUtf8Bytes(_output.AsSpan(0, _outputPrefixLengths.Max()))) * _bitsPerByte;
     public int MaxOutputLength => _maxBytesPerRune * _bitsPerByte;
 
     private ExampleGenerator(Rune[] input,
                              int inputUtf8ByteLength,
                              Rune[] output,
-                             int[] outputPrefixLengths)
+                             int[] outputPrefixLengths,
+                             int uniqueExampleCount)
     {
         _input = input;
         _inputUtf8ByteLength = inputUtf8ByteLength;
         _output = output;
         _outputPrefixLengths = outputPrefixLengths;
+        UniqueExampleCount = uniqueExampleCount;
     }
 
     public static ExampleGenerator CreateRandom(Random random, HashSet<int> usedIndexes, string input, string output, int examplesPerProblem)
@@ -56,7 +59,7 @@ internal readonly record struct ExampleGenerator
         }
 
         Array.Sort(prefixLengths);
-        return new ExampleGenerator(inputRunes, CountUtf8Bytes(inputRunes), outputRunes, prefixLengths);
+        return new ExampleGenerator(inputRunes, CountUtf8Bytes(inputRunes), outputRunes, prefixLengths, maxExampleCount);
     }
 
     public IEnumerable<Rune> UsedOutputs()

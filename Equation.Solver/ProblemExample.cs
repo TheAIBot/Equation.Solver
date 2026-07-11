@@ -149,7 +149,13 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
         int bitsPerVector = Vector256<int>.Count * intBitCount;
         foreach (ExampleGenerator[] exampleChunk in examples.Chunk(bitsPerVector))
         {
-            for (int examplePrefixIndex = 0; examplePrefixIndex < examplePrefixCount; examplePrefixIndex++)
+            // If all examples only have 3 unique examples but they all have 5
+            // then there is no need to make more than 3 since the last two
+            // will just be duplicated of the last unique one.
+            int maxUniqueExampleCount = exampleChunk.Max(x => x.UniqueExampleCount);
+            int exampleCountToMake = Math.Min(maxUniqueExampleCount, examplePrefixCount);
+
+            for (int examplePrefixIndex = 0; examplePrefixIndex < exampleCountToMake; examplePrefixIndex++)
             {
                 (Vector256<int>[] inputValues, Vector256<int> _) = ConvertToExampleVectors(exampleChunk.Select(x => x.GetInput(examplePrefixIndex)), maxInputLength).Single();
                 (Vector256<int>[] outputValues, Vector256<int> outputMask) = ConvertToExampleVectors(exampleChunk.Select(x => outputRuneToOutputBools[x.GetOutputRune(examplePrefixIndex)]), maxOutputLength).Single();
