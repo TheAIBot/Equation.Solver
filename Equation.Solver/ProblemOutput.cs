@@ -3,24 +3,27 @@ using System.Runtime.Intrinsics;
 
 namespace Equation.Solver;
 
-internal readonly record struct ProblemOutput(Vector256<int>[] Outputs, Vector256<int> MaskBitsUsed)
+internal readonly record struct ProblemOutput(int[] Indexes, Vector256<int> MaskBitsUsed)
 {
-    public int Count => Outputs.Length;
+    public int Count => Indexes.Length;
 
-    public void CalculateDifference(ReadOnlySpan<Vector256<int>> compareTo, Span<int> bitErrors)
+    public unsafe void CalculateDifference(ReadOnlySpan<Vector256<int>> compareTo, Span<int> bitErrors, ProblemCollection problemCollection)
     {
-        if (compareTo.Length != Outputs.Length)
+        if (compareTo.Length != Indexes.Length)
         {
-            throw new ArgumentException($"Must be the same length as {nameof(Outputs)}", nameof(compareTo));
+            throw new ArgumentException($"Must be the same length as {nameof(Indexes)}", nameof(compareTo));
         }
-        if (bitErrors.Length != Outputs.Length)
+        if (bitErrors.Length != Indexes.Length)
         {
-            throw new ArgumentException($"Must be the same length as {nameof(Outputs)}", nameof(bitErrors));
+            throw new ArgumentException($"Must be the same length as {nameof(Indexes)}", nameof(bitErrors));
         }
 
-        for (int i = 0; i < Outputs.Length; i++)
+        int* vectors = (int*)problemCollection.Vectors;
+        int[] indexes = Indexes;
+
+        for (int i = 0; i < indexes.Length; i++)
         {
-            Vector256<int> expected = Outputs[i];
+            Vector256<int> expected = Vector256.LoadAligned(vectors + indexes[i] * Vector256<int>.Count);
             Vector256<int> actual = compareTo[i] & MaskBitsUsed;
             Vector256<ulong> diff = (expected ^ actual).AsUInt64();
             bitErrors[i] += BitOperations.PopCount(diff.GetElement(0)) +
@@ -30,17 +33,20 @@ internal readonly record struct ProblemOutput(Vector256<int>[] Outputs, Vector25
         }
     }
 
-    public bool[] GetExampleCorrectness(ReadOnlySpan<Vector256<int>> compareTo)
+    public unsafe bool[] GetExampleCorrectness(ReadOnlySpan<Vector256<int>> compareTo, ProblemCollection problemCollection)
     {
-        if (compareTo.Length != Outputs.Length)
+        if (compareTo.Length != Indexes.Length)
         {
-            throw new ArgumentException($"Must be the same length as {nameof(Outputs)}", nameof(compareTo));
+            throw new ArgumentException($"Must be the same length as {nameof(Indexes)}", nameof(compareTo));
         }
 
+        int* vectors = (int*)problemCollection.Vectors;
+        int[] indexes = Indexes;
+
         var combinedDiff = Vector256<int>.Zero;
-        for (int i = 0; i < Outputs.Length; i++)
+        for (int i = 0; i < indexes.Length; i++)
         {
-            Vector256<int> expected = Outputs[i];
+            Vector256<int> expected = Vector256.LoadAligned(vectors + indexes[i] * Vector256<int>.Count);
             Vector256<int> actual = compareTo[i] & MaskBitsUsed;
             combinedDiff |= expected ^ actual;
         }

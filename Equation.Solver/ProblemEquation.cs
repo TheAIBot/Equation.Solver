@@ -34,7 +34,7 @@ internal sealed class ProblemEquation
 
         fixed (int* inputIndexes = example.Input.Indexes)
         {
-            int* inputVectors = (int*)problemCollection.Vectors;
+            int* vectors = (int*)problemCollection.Vectors;
 
             for (int i = 0; i < nandOperators.Length; i++)
             {
@@ -43,7 +43,7 @@ internal sealed class ProblemEquation
                     continue;
                 }
 
-                var result = nandOperators[i].Nand(allValues, inputIndexes, inputVectors, inputCount);
+                var result = nandOperators[i].Nand(allValues, inputIndexes, vectors, inputCount);
                 result.StoreAligned((int*)(results + i));
             }
         }

@@ -7,7 +7,7 @@ internal sealed class EquationProblem
 {
     private readonly ProblemCollection _problemCollection;
     public int ParameterCount => _problemCollection.Examples[0].Input.Indexes.Length;
-    public int OutputCount => _problemCollection.Examples[0].Output.Outputs.Length;
+    public int OutputCount => _problemCollection.Examples[0].Output.Indexes.Length;
 
     public EquationProblem(ProblemCollection problemCollection)
     {
@@ -40,7 +40,7 @@ internal sealed class EquationProblem
         {
             ProblemExample example = _problemCollection.Examples[i];
             ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues, example, _problemCollection);
-            example.Output.CalculateDifference(equationResult, bitErrors);
+            example.Output.CalculateDifference(equationResult, bitErrors, _problemCollection);
         }
     }
 
@@ -67,7 +67,7 @@ internal sealed class EquationProblem
         for (int i = 0; i < _problemCollection.Examples.Length; i++)
         {
             ReadOnlySpan<Vector256<int>> equationResult = equation.Calculate(equationValues, _problemCollection.Examples[i], _problemCollection);
-            bool[] correctness = _problemCollection.Examples[i].Output.GetExampleCorrectness(equationResult);
+            bool[] correctness = _problemCollection.Examples[i].Output.GetExampleCorrectness(equationResult, _problemCollection);
             foreach (bool correct in correctness)
             {
                 yield return correct;

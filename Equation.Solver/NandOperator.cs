@@ -21,13 +21,13 @@ internal readonly struct NandOperator
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly unsafe Vector256<int> Nand(int* allValues, int* inputIndexes, int* inputVectors, int inputCount)
+    public readonly unsafe Vector256<int> Nand(int* allValues, int* inputIndexes, int* vectors, int inputCount)
     {
         int* leftValue;
         if (_leftValueIndex < inputCount)
         {
             int vectorIndex = inputIndexes[_leftValueIndex / (uint)Vector256<int>.Count];
-            leftValue = inputVectors + vectorIndex * Vector256<int>.Count;
+            leftValue = vectors + vectorIndex * Vector256<int>.Count;
         }
         else
         {
@@ -38,7 +38,7 @@ internal readonly struct NandOperator
         if (_rightValueIndex < inputCount)
         {
             int vectorIndex = inputIndexes[_rightValueIndex / (uint)Vector256<int>.Count];
-            rightValue = inputVectors + vectorIndex * Vector256<int>.Count;
+            rightValue = vectors + vectorIndex * Vector256<int>.Count;
         }
         else
         {

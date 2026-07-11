@@ -90,8 +90,25 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
                 inputIndexes[i] = index;
             }
 
+            var outputIndexes = new int[exampleVectors.output.outputs.Length];
+            for (int i = 0; i < exampleVectors.output.outputs.Length; i++)
+            {
+                Vector256<int> vector = exampleVectors.output.outputs[i];
+                if (!vectorIndexes.TryGetValue(vector, out int index))
+                {
+                    index = vectorIndexes.Count;
+                    vectorIndexes[vector] = index;
+                    totalVectors++;
+                }
+                else
+                {
+                    deduplicatedVectors++;
+                }
+                outputIndexes[i] = index;
+            }
+
             var problemInput = new ProblemInput(inputIndexes);
-            var problemOutput = new ProblemOutput(exampleVectors.output.outputs, exampleVectors.output.mask);
+            var problemOutput = new ProblemOutput(outputIndexes, exampleVectors.output.mask);
             problemExamples.Add(new ProblemExample(problemInput, problemOutput));
         }
 
@@ -177,8 +194,25 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
                     inputIndexes[inputVectorIndex] = index;
                 }
 
+                var outputIndexes = new int[maxOutputLength];
+                for (int i = 0; i < maxOutputLength; i++)
+                {
+                    Vector256<int> vector = outputValues[i];
+                    if (!vectorIndexes.TryGetValue(vector, out int index))
+                    {
+                        index = vectorIndexes.Count;
+                        vectorIndexes[vector] = index;
+                        totalVectors++;
+                    }
+                    else
+                    {
+                        deduplicatedVectors++;
+                    }
+                    outputIndexes[i] = index;
+                }
+
                 var problemInput = new ProblemInput(inputIndexes);
-                var problemOutput = new ProblemOutput(outputValues, outputMask);
+                var problemOutput = new ProblemOutput(outputIndexes, outputMask);
                 problemExamples.Add(new ProblemExample(problemInput, problemOutput));
             }
         }

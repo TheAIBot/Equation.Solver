@@ -31,7 +31,7 @@ internal sealed class Program
         examples = null!;
 
         (ProblemCollection solvingProblemCollection, ProblemCollection validationProblemCollection) = SplitSolvingAndValidationExamples(fullProblemCollection, 0.02f);
-        Console.WriteLine($"Total output bits: {solvingProblemCollection.Examples.Sum(x => x.Output.Outputs.LongLength * PopCount(x.Output.MaskBitsUsed)):N0}");
+        Console.WriteLine($"Total output bits: {solvingProblemCollection.Examples.Sum(x => x.Output.Indexes.LongLength * PopCount(x.Output.MaskBitsUsed)):N0}");
 
         IExampleCluster exampleCluster = new RandomExampleCluster([
             new RandomExampleClustering(1.00f, 5),
