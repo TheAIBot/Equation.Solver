@@ -59,6 +59,14 @@ internal readonly record struct ExampleGenerator
         return new ExampleGenerator(inputRunes, CountUtf8Bytes(inputRunes), outputRunes, prefixLengths);
     }
 
+    public IEnumerable<Rune> UsedOutputs()
+    {
+        foreach (var index in _outputPrefixLengths)
+        {
+            yield return _output[index];
+        }
+    }
+
     public bool[] GetInput(int index)
     {
         int outputRuneCount = _outputPrefixLengths[index];
@@ -89,6 +97,11 @@ internal readonly record struct ExampleGenerator
         utf8Bytes = utf8Bytes.Slice(0, writtenByteCount);
 
         return Program.TextToBools(utf8Bytes);
+    }
+
+    public Rune GetOutputRune(int index)
+    {
+        return _output[_outputPrefixLengths[index]];
     }
 
     private static int CountUtf8Bytes(ReadOnlySpan<Rune> runes)

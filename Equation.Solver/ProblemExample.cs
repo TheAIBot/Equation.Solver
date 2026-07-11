@@ -1,5 +1,5 @@
 ﻿using System.Runtime.Intrinsics;
-using static Equation.Solver.Program;
+using System.Text;
 
 namespace Equation.Solver;
 
@@ -110,14 +110,33 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
     public static ProblemCollection ConvertToExamples(ExampleGenerator[] examples, int examplePrefixCount)
     {
         int maxInputLength = -1;
-        int maxOutputLength = -1;
+
         for (int i = 0; i < examples.Length; i++)
         {
             maxInputLength = Math.Max(maxInputLength, examples[i].MaxInputLength);
-            maxOutputLength = Math.Max(maxOutputLength, examples[i].MaxOutputLength);
         }
 
         Array.Sort(examples, (x, y) => x.MaxInputLength - y.MaxInputLength);
+
+        Dictionary<Rune, int> outputRuneToIndex = [];
+        foreach (var outputRune in examples.SelectMany(x => x.UsedOutputs()))
+        {
+            if (outputRuneToIndex.ContainsKey(outputRune))
+            {
+                continue;
+            }
+
+            outputRuneToIndex.Add(outputRune, outputRuneToIndex.Count);
+        }
+        int maxOutputLength = outputRuneToIndex.Count;
+
+        Dictionary<Rune, bool[]> outputRuneToOutputBools = [];
+        foreach (var item in outputRuneToIndex)
+        {
+            bool[] outputBools = new bool[maxOutputLength];
+            outputBools[item.Value] = true;
+            outputRuneToOutputBools.Add(item.Key, outputBools);
+        }
 
 
         var vectorIndexes = new Dictionary<Vector256<int>, int>();
@@ -133,7 +152,7 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
             for (int examplePrefixIndex = 0; examplePrefixIndex < examplePrefixCount; examplePrefixIndex++)
             {
                 (Vector256<int>[] inputValues, Vector256<int> _) = ConvertToExampleVectors(exampleChunk.Select(x => x.GetInput(examplePrefixIndex)), maxInputLength).Single();
-                (Vector256<int>[] outputValues, Vector256<int> outputMask) = ConvertToExampleVectors(exampleChunk.Select(x => x.GetOutput(examplePrefixIndex)), maxOutputLength).Single();
+                (Vector256<int>[] outputValues, Vector256<int> outputMask) = ConvertToExampleVectors(exampleChunk.Select(x => outputRuneToOutputBools[x.GetOutputRune(examplePrefixIndex)]), maxOutputLength).Single();
 
                 var inputIndexes = new int[maxInputLength];
                 for (int inputVectorIndex = 0; inputVectorIndex < maxInputLength; inputVectorIndex++)
