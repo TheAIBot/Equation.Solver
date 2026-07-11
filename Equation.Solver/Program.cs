@@ -27,8 +27,6 @@ internal sealed class Program
         const int prefixExampleCount = 5;
         ExampleGenerator[] examples = await CreateExamplesFromInputProblem(jsonProblems, prefixExampleCount).ToArrayAsync();
 
-
-
         ProblemCollection fullProblemCollection = ProblemExample.ConvertToExamples(examples, prefixExampleCount);
         examples = null!;
 
@@ -90,33 +88,7 @@ internal sealed class Program
 
         await foreach (var problem in problems)
         {
-            usedIndexes.Clear();
-            int maxExampleCount = Math.Min(examplesPerProblem, problem.Output.Length);
-            int exampleCount = 0;
-            int[] prefixLengths = new int[examplesPerProblem];
-            while (exampleCount < maxExampleCount)
-            {
-                int prefixLength = random.Next(0, problem.Output.Length);
-                if (!usedIndexes.Add(prefixLength))
-                {
-                    continue;
-                }
-
-                prefixLengths[exampleCount] = prefixLength;
-                exampleCount++;
-            }
-
-            // If output isn't large enough for the number of duplicates then
-            // the last examples are just duplicated to fill it out.
-            // This simplifies later code since all generators has the same length.
-            while (exampleCount + 1 < prefixLengths.Length)
-            {
-                prefixLengths[exampleCount + 1] = prefixLengths[exampleCount];
-                exampleCount++;
-            }
-
-            Array.Sort(prefixLengths);
-            yield return new ExampleGenerator(problem.Input, problem.Output, prefixLengths);
+            yield return ExampleGenerator.CreateRandom(random, usedIndexes, problem.Input, problem.Output, examplesPerProblem);
         }
     }
 
@@ -252,17 +224,23 @@ internal sealed class Program
 
     internal static bool[] TextToBools(string text)
     {
-        byte[] utf8Bytes = Encoding.UTF8.GetBytes(text);
-        List<bool> bools = [];
+        return TextToBools(Encoding.UTF8.GetBytes(text));
+    }
+
+    internal static bool[] TextToBools(ReadOnlySpan<byte> utf8Bytes)
+    {
+        const int bitsPerByte = 8;
+        bool[] bools = new bool[utf8Bytes.Length * bitsPerByte];
+        int boolIndex = 0;
         for (int byteIndex = 0; byteIndex < utf8Bytes.Length; byteIndex++)
         {
-            const int bitsPerByte = 8;
             for (int bitIndex = 0; bitIndex < bitsPerByte; bitIndex++)
             {
-                bools.Add(((utf8Bytes[byteIndex] >> bitIndex) & 1) == 1);
+                bools[boolIndex] = ((utf8Bytes[byteIndex] >> bitIndex) & 1) == 1;
+                boolIndex++;
             }
         }
 
-        return bools.ToArray();
+        return bools;
     }
 }
