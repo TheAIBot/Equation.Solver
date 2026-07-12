@@ -6,6 +6,7 @@ namespace Equation.Solver.Solvers;
 
 internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChunkSolver
 {
+    private readonly int _solverChunkIndex;
     private readonly int _parameterCount;
     private readonly int _operatorCount;
     private readonly int _outputCount;
@@ -23,6 +24,7 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
     private readonly EquationWithScore[] _familyEquationsWithScore = new EquationWithScore[3];
     private long _iterationCount;
     private EquationScore? _bestScore;
+    private int _bestScoreIteration;
     [AllowNull]
     private ProblemEquation _bestEquation;
     private bool _isRunning = false;
@@ -31,7 +33,8 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
     private EquationValues? _equationValues;
     private HashSet<int> _usedOperations = [];
 
-    public RandomEvolutionSolverWithEquationCombining(int parameterCount,
+    public RandomEvolutionSolverWithEquationCombining(int solverChunkIndex,
+                                                      int parameterCount,
                                                       int operatorCount,
                                                       int outputCount,
                                                       int candidateCount,
@@ -42,6 +45,7 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
                                                       float chanceOnlyMoveOperator,
                                                       int moveCount)
     {
+        _solverChunkIndex = solverChunkIndex;
         _parameterCount = parameterCount;
         _operatorCount = operatorCount;
         _outputCount = outputCount;
@@ -66,13 +70,19 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
         }
 
         var bestScore = _bestScore;
+        var bestScoreIteration = _bestScoreIteration;
         var bestEquation = _bestEquation;
         if (bestScore == null ||
             bestEquation == null)
         {
             return null;
         }
-        return new SolverReport(_iterationCount, bestScore.Value, bestEquation);
+
+
+        return new SolverReport(new ReportId(_solverChunkIndex, bestScoreIteration),
+                                _iterationCount,
+                                bestScore.Value,
+                                bestEquation);
     }
 
     public async Task SolveAsync(EquationProblem problem, CancellationToken cancellationToken)
@@ -110,6 +120,7 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
         _isRunning = true;
         _iterationCount = 0;
         _bestScore = EquationScore.MaxScore;
+        _bestScoreIteration = 0;
 
         return Task.CompletedTask;
     }
@@ -214,7 +225,8 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
 
     public ISolver Copy()
     {
-        return new RandomEvolutionSolverWithEquationCombining(_parameterCount,
+        return new RandomEvolutionSolverWithEquationCombining(0,
+                                                              _parameterCount,
                                                               _operatorCount,
                                                               _outputCount,
                                                               _candidateCount,
@@ -226,9 +238,10 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
                                                               _moveCount);
     }
 
-    public IChunkSolver CopyChunkSolver()
+    public IChunkSolver CopyChunkSolver(int chunkIndex)
     {
-        return new RandomEvolutionSolverWithEquationCombining(_parameterCount,
+        return new RandomEvolutionSolverWithEquationCombining(chunkIndex,
+                                                              _parameterCount,
                                                               _operatorCount,
                                                               _outputCount,
                                                               _candidateCount,
@@ -272,6 +285,7 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
         if (betterEquationWithScore.Score < _bestScore)
         {
             _bestScore = _fullScorer.ToFullScore(betterEquationWithScore.Score.Value, equationValues, betterEquationWithScore.Equation);
+            _bestScoreIteration++;
             _bestEquation = betterEquationWithScore.Equation.Copy();
         }
     }

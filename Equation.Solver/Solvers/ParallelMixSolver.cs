@@ -14,6 +14,7 @@ internal sealed class ParallelMixSolver : ISolver
     private readonly EquationValues _equationValues;
     private readonly FullScorer _fullScorer = new FullScorer();
     private EquationScore? _bestScore;
+    private Dictionary<int, (int ReportIteration, SolverReport Report, SlimEquationScore SlimScore)>? _solverIdToReportData;
 
     public ParallelMixSolver(IChunkSolver chunkSolver,
                              EquationProblem[] problems,
@@ -22,7 +23,7 @@ internal sealed class ParallelMixSolver : ISolver
                              int chunkSolverIterationsPerMix,
                              float chanceToMix)
     {
-        _chunkSolvers = problems.Select(_ => chunkSolver.CopyChunkSolver())
+        _chunkSolvers = problems.Select((_, i) => chunkSolver.CopyChunkSolver(i))
                                         .ToArray();
         _problems = problems;
         _wholeProblem = wholeProblem;
@@ -41,12 +42,32 @@ internal sealed class ParallelMixSolver : ISolver
             return null;
         }
 
-        (SolverReport report, SlimEquationScore fullScore) = allReports.Select(x => (x, _wholeProblem.EvaluateEquation(x.BestEquation, _equationValues)))
-                                                                       .MinBy(x => x.Item2.WrongBits);
+        if (_solverIdToReportData == null)
+        {
+            _solverIdToReportData = [];
+        }
+
+        foreach (var report in allReports)
+        {
+            if (!_solverIdToReportData.TryGetValue(report.ReportId.SolverId, out var previousReportData))
+            {
+                _solverIdToReportData.Add(report.ReportId.SolverId, (report.ReportId.ReportIteration, report, _wholeProblem.EvaluateEquation(report.BestEquation, _equationValues)));
+            }
+
+            if (report.ReportId.ReportIteration == previousReportData.ReportIteration)
+            {
+                continue;
+            }
+
+            _solverIdToReportData[report.ReportId.SolverId] = (report.ReportId.ReportIteration, report, _wholeProblem.EvaluateEquation(report.BestEquation, _equationValues));
+        }
+
+        (SolverReport bestChunkReport, SlimEquationScore bestChunkScore) = _solverIdToReportData.Select(x => (x.Value.Report, x.Value.SlimScore))
+                                                                                                .MinBy(x => x.Item2.WrongBits);
 
         SolverReport bestReport = new SolverReport(allReports.Sum(x => x.IterationCount),
-                                                   _fullScorer.ToFullScore(fullScore, _equationValues, report.BestEquation),
-                                                   report.BestEquation);
+                                                   _fullScorer.ToFullScore(bestChunkScore, _equationValues, bestChunkReport.BestEquation),
+                                                   bestChunkReport.BestEquation);
 
         _bestScore = bestReport.BestScore;
         return bestReport;

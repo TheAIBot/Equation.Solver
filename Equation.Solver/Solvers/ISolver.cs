@@ -13,7 +13,7 @@ internal interface IChunkSolver : IReporting
 
     Task SolveStepAsync(EquationProblem problem, CancellationToken cancellationToken);
 
-    IChunkSolver CopyChunkSolver();
+    IChunkSolver CopyChunkSolver(int chunkIndex);
 
     EquationWithScore[] GetEquations();
 

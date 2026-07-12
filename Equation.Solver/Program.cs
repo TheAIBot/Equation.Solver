@@ -51,7 +51,8 @@ internal sealed class Program
         //ISolver solver = new ParallelSolver(new RandomEvolutionSolverWithEquationCombining(problem.ParameterCount, 1000, problem.OutputCount, 100_000, 0.01f, 0.0025f, 0.001f, 0.001f, 0.5f));
         //ISolver solver = new RandomChunkEvolutionSolver(100, 10_000, new RandomChunkEvolver(200, 10_000, 0.1f, 0.02f, problem.ParameterCount, problem.OutputCount));
         int operatorCount = 20_000;
-        ISolver solver = new ParallelMixSolver(new RandomEvolutionSolverWithEquationCombining(problems[0].ParameterCount,
+        ISolver solver = new ParallelMixSolver(new RandomEvolutionSolverWithEquationCombining(0,
+                                                                                              problems[0].ParameterCount,
                                                                                               operatorCount,
                                                                                               problems[0].OutputCount,
                                                                                               20_0,
