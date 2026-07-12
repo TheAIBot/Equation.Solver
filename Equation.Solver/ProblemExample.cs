@@ -1,4 +1,5 @@
-﻿using System.Runtime.Intrinsics;
+﻿using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 using System.Text;
 
 namespace Equation.Solver;
@@ -124,19 +125,18 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
         return ProblemCollection.Create(problemExamples.ToArray(), uniqueVectors);
     }
 
-    public static ProblemCollection ConvertToExamples(ExampleGenerator[] examples, int examplePrefixCount)
+    public static async Task<ProblemCollection> ConvertToExamples(IAsyncEnumerable<ExampleGenerator> examples, int examplePrefixCount)
     {
-        int maxInputLength = -1;
+        ExampleGenerator[] allExamples = await examples.OrderByDescending(x => x.MaxInputLength).ToArrayAsync();
 
-        for (int i = 0; i < examples.Length; i++)
+        int maxInputLength = -1;
+        for (int i = 0; i < allExamples.Length; i++)
         {
-            maxInputLength = Math.Max(maxInputLength, examples[i].MaxInputLength);
+            maxInputLength = Math.Max(maxInputLength, allExamples[i].MaxInputLength);
         }
 
-        Array.Sort(examples, (x, y) => x.MaxInputLength - y.MaxInputLength);
-
         Dictionary<Rune, int> outputRuneToIndex = [];
-        foreach (var outputRune in examples.SelectMany(x => x.UsedOutputs()))
+        foreach (var outputRune in allExamples.SelectMany(x => x.UsedOutputs()))
         {
             if (outputRuneToIndex.ContainsKey(outputRune))
             {
@@ -164,7 +164,7 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
 
         const int intBitCount = 32;
         int bitsPerVector = Vector256<int>.Count * intBitCount;
-        foreach (ExampleGenerator[] exampleChunk in examples.Chunk(bitsPerVector))
+        foreach (ExampleGenerator[] exampleChunk in allExamples.Chunk(bitsPerVector))
         {
             // If all examples only have 3 unique examples but they all have 5
             // then there is no need to make more than 3 since the last two
@@ -174,45 +174,44 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
 
             for (int examplePrefixIndex = 0; examplePrefixIndex < exampleCountToMake; examplePrefixIndex++)
             {
-                (Vector256<int>[] inputValues, Vector256<int> _) = ConvertToExampleVectors(exampleChunk.Select(x => x.GetInput(examplePrefixIndex)), maxInputLength).Single();
-                (Vector256<int>[] outputValues, Vector256<int> outputMask) = ConvertToExampleVectors(exampleChunk.Select(x => outputRuneToOutputBools[x.GetOutputRune(examplePrefixIndex)]), maxOutputLength).Single();
-
                 var inputIndexes = new int[maxInputLength];
-                for (int inputVectorIndex = 0; inputVectorIndex < maxInputLength; inputVectorIndex++)
+                int inputVectorIndex = 0;
+                foreach (Vector256<int> inputVector in ConvertToExampleVectorsNoMask(exampleChunk.Select(x => x.GetInput(examplePrefixIndex)).ToArray(), maxInputLength))
                 {
-                    Vector256<int> vector = inputValues[inputVectorIndex];
-                    if (!vectorIndexes.TryGetValue(vector, out int index))
+                    ref int vectorIndex = ref CollectionsMarshal.GetValueRefOrAddDefault(vectorIndexes, inputVector, out bool existed);
+                    if (!existed)
                     {
-                        index = vectorIndexes.Count;
-                        vectorIndexes[vector] = index;
+                        vectorIndex = vectorIndexes.Count - 1;
                         totalVectors++;
                     }
                     else
                     {
                         deduplicatedVectors++;
                     }
-                    inputIndexes[inputVectorIndex] = index;
+                    inputIndexes[inputVectorIndex] = vectorIndex;
+                    inputVectorIndex++;
                 }
 
                 var outputIndexes = new int[maxOutputLength];
-                for (int i = 0; i < maxOutputLength; i++)
+                int outputVectorIndex = 0;
+                foreach (Vector256<int> outputVector in ConvertToExampleVectorsNoMask(exampleChunk.Select(x => outputRuneToOutputBools[x.GetOutputRune(examplePrefixIndex)]).ToArray(), maxOutputLength))
                 {
-                    Vector256<int> vector = outputValues[i];
-                    if (!vectorIndexes.TryGetValue(vector, out int index))
+                    ref int vectorIndex = ref CollectionsMarshal.GetValueRefOrAddDefault(vectorIndexes, outputVector, out bool existed);
+                    if (!existed)
                     {
-                        index = vectorIndexes.Count;
-                        vectorIndexes[vector] = index;
+                        vectorIndex = vectorIndexes.Count - 1;
                         totalVectors++;
                     }
                     else
                     {
                         deduplicatedVectors++;
                     }
-                    outputIndexes[i] = index;
+                    outputIndexes[outputVectorIndex] = vectorIndex;
+                    outputVectorIndex++;
                 }
 
                 var problemInput = new ProblemInput(inputIndexes);
-                var problemOutput = new ProblemOutput(outputIndexes, outputMask);
+                var problemOutput = new ProblemOutput(outputIndexes, CreateMask(exampleChunk.Length));
                 problemExamples.Add(new ProblemExample(problemInput, problemOutput));
             }
         }
@@ -263,5 +262,46 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
             var mask = Vector256.Create(exampleMask32x8);
             yield return (exampleVectors, mask);
         }
+    }
+
+    private static IEnumerable<Vector256<int>> ConvertToExampleVectorsNoMask(bool[][] exampleChunk, int maxExampleLength)
+    {
+        const int intBitCount = 32;
+        var exampleInt32x8 = new int[Vector256<int>.Count];
+
+        for (int i = 0; i < maxExampleLength; i++)
+        {
+            int exampleIndex = 0;
+            for (int elementIndex = 0; elementIndex < Vector256<int>.Count; elementIndex++)
+            {
+                int exampleElement = 0;
+                int remainingBits = Math.Min(intBitCount, exampleChunk.Length - exampleIndex);
+                for (int bitIndex = 0; bitIndex < remainingBits; bitIndex++)
+                {
+                    bool[] example = exampleChunk[exampleIndex];
+                    exampleIndex++;
+                    if (i < example.Length)
+                    {
+                        exampleElement |= (example[i] ? 1 : 0) << bitIndex;
+                    }
+                }
+
+                exampleInt32x8[elementIndex] = exampleElement;
+            }
+
+            yield return Vector256.Create(exampleInt32x8);
+        }
+    }
+
+    private static Vector256<int> CreateMask(int bitsUsed)
+    {
+        const int intBitCount = 32;
+        Span<int> exampleMask32x8 = stackalloc int[Vector256<int>.Count];
+        for (int i = 0; i < bitsUsed; i++)
+        {
+            exampleMask32x8[i / intBitCount] |= 1 << (i % intBitCount);
+        }
+
+        return Vector256.Create(exampleMask32x8);
     }
 }

@@ -25,9 +25,9 @@ internal sealed class Program
             });
 
         const int prefixExampleCount = 20;
-        ExampleGenerator[] examples = await CreateExamplesFromInputProblem(jsonProblems, prefixExampleCount).ToArrayAsync();
+        IAsyncEnumerable<ExampleGenerator> examples = CreateExamplesFromInputProblem(jsonProblems, prefixExampleCount);
 
-        ProblemCollection fullProblemCollection = ProblemExample.ConvertToExamples(examples, prefixExampleCount);
+        ProblemCollection fullProblemCollection = await ProblemExample.ConvertToExamples(examples, prefixExampleCount);
         examples = null!;
 
         (ProblemCollection solvingProblemCollection, ProblemCollection validationProblemCollection) = SplitSolvingAndValidationExamples(fullProblemCollection, 0.02f);

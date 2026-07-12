@@ -12,7 +12,7 @@ internal readonly record struct ExampleGenerator
     private readonly int[] _outputPrefixLengths;
 
     public int UniqueExampleCount { get; }
-    public int MaxInputLength => (_inputUtf8ByteLength + CountUtf8Bytes(_output.AsSpan(0, _outputPrefixLengths.Max()))) * _bitsPerByte;
+    public int MaxInputLength { get; }
     public int MaxOutputLength => _maxBytesPerRune * _bitsPerByte;
 
     private ExampleGenerator(Rune[] input,
@@ -26,6 +26,7 @@ internal readonly record struct ExampleGenerator
         _output = output;
         _outputPrefixLengths = outputPrefixLengths;
         UniqueExampleCount = uniqueExampleCount;
+        MaxInputLength = (_inputUtf8ByteLength + CountUtf8Bytes(_output.AsSpan(0, _outputPrefixLengths.Max()))) * _bitsPerByte;
     }
 
     public static ExampleGenerator CreateRandom(Random random, HashSet<int> usedIndexes, string input, string output, int examplesPerProblem)
