@@ -172,43 +172,20 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
             int maxUniqueExampleCount = exampleChunk.Max(x => x.UniqueExampleCount);
             int exampleCountToMake = Math.Min(maxUniqueExampleCount, examplePrefixCount);
 
+            bool[][] commonInputPrefixes = exampleChunk.Select(x => x.GetSharedInputPrefix()).ToArray();
+            int minCommonInputPrefixLength = commonInputPrefixes.Min(x => x.Length);
+            int[] sharedInputIndexes = ConvertExamplesToDeduplicatedVectors(minCommonInputPrefixLength, vectorIndexes, ref totalVectors, ref deduplicatedVectors, commonInputPrefixes);
+            deduplicatedVectors += minCommonInputPrefixLength * (exampleCountToMake - 1);
+
             for (int examplePrefixIndex = 0; examplePrefixIndex < exampleCountToMake; examplePrefixIndex++)
             {
-                var inputIndexes = new int[maxInputLength];
-                int inputVectorIndex = 0;
-                foreach (Vector256<int> inputVector in ConvertToExampleVectorsNoMask(exampleChunk.Select(x => x.GetInput(examplePrefixIndex)).ToArray(), maxInputLength))
-                {
-                    ref int vectorIndex = ref CollectionsMarshal.GetValueRefOrAddDefault(vectorIndexes, inputVector, out bool existed);
-                    if (!existed)
-                    {
-                        vectorIndex = vectorIndexes.Count - 1;
-                        totalVectors++;
-                    }
-                    else
-                    {
-                        deduplicatedVectors++;
-                    }
-                    inputIndexes[inputVectorIndex] = vectorIndex;
-                    inputVectorIndex++;
-                }
+                bool[][] uniqueInputPostfixes = exampleChunk.Select((x, i) => commonInputPrefixes[i].Skip(minCommonInputPrefixLength).Concat(x.GetUniqueInputPostfix(examplePrefixIndex)).ToArray()).ToArray();
+                int[] uniqueInputIndexes = ConvertExamplesToDeduplicatedVectors(uniqueInputPostfixes.Max(x => x.Length), vectorIndexes, ref totalVectors, ref deduplicatedVectors, uniqueInputPostfixes);
+                int[] inputIndexes = new int[maxInputLength];
+                sharedInputIndexes.CopyTo(inputIndexes, 0);
+                uniqueInputIndexes.CopyTo(inputIndexes, sharedInputIndexes.Length);
 
-                var outputIndexes = new int[maxOutputLength];
-                int outputVectorIndex = 0;
-                foreach (Vector256<int> outputVector in ConvertToExampleVectorsNoMask(exampleChunk.Select(x => outputRuneToOutputBools[x.GetOutputRune(examplePrefixIndex)]).ToArray(), maxOutputLength))
-                {
-                    ref int vectorIndex = ref CollectionsMarshal.GetValueRefOrAddDefault(vectorIndexes, outputVector, out bool existed);
-                    if (!existed)
-                    {
-                        vectorIndex = vectorIndexes.Count - 1;
-                        totalVectors++;
-                    }
-                    else
-                    {
-                        deduplicatedVectors++;
-                    }
-                    outputIndexes[outputVectorIndex] = vectorIndex;
-                    outputVectorIndex++;
-                }
+                int[] outputIndexes = ConvertExamplesToDeduplicatedVectors(maxOutputLength, vectorIndexes, ref totalVectors, ref deduplicatedVectors, exampleChunk.Select(x => outputRuneToOutputBools[x.GetOutputRune(examplePrefixIndex)]).ToArray());
 
                 var problemInput = new ProblemInput(inputIndexes);
                 var problemOutput = new ProblemOutput(outputIndexes, CreateMask(exampleChunk.Length));
@@ -226,6 +203,29 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
         }
 
         return ProblemCollection.Create(problemExamples.ToArray(), uniqueVectors);
+    }
+
+    private static int[] ConvertExamplesToDeduplicatedVectors(int maxInputLength, Dictionary<Vector256<int>, int> vectorIndexes, ref int totalVectors, ref int deduplicatedVectors, bool[][] problems)
+    {
+        var indexes = new int[maxInputLength];
+        int indexVectorIndex = 0;
+        foreach (Vector256<int> inputVector in ConvertToExampleVectorsNoMask(problems, maxInputLength))
+        {
+            ref int vectorIndex = ref CollectionsMarshal.GetValueRefOrAddDefault(vectorIndexes, inputVector, out bool existed);
+            if (!existed)
+            {
+                vectorIndex = vectorIndexes.Count - 1;
+                totalVectors++;
+            }
+            else
+            {
+                deduplicatedVectors++;
+            }
+            indexes[indexVectorIndex] = vectorIndex;
+            indexVectorIndex++;
+        }
+
+        return indexes;
     }
 
     private static IEnumerable<(Vector256<int>[] values, Vector256<int> mask)> ConvertToExampleVectors(IEnumerable<bool[]> examples, int maxExampleLength)

@@ -71,11 +71,12 @@ internal readonly record struct ExampleGenerator
         }
     }
 
-    public bool[] GetInput(int index)
+    public bool[] GetSharedInputPrefix()
     {
-        int outputRuneCount = _outputPrefixLengths[index];
-        ReadOnlySpan<Rune> outputPart = _output.AsSpan(0, outputRuneCount);
+        int smalletCommonOutputPrefix = _outputPrefixLengths.Min();
+        ReadOnlySpan<Rune> outputPart = _output.AsSpan(0, smalletCommonOutputPrefix);
         int byteCount = _inputUtf8ByteLength + CountUtf8Bytes(outputPart);
+
         byte[] allUtf8Bytes = new byte[byteCount];
         Span<byte> utf8Bytes = allUtf8Bytes;
 
@@ -84,6 +85,24 @@ internal readonly record struct ExampleGenerator
             int writtenByteCount = _input[i].EncodeToUtf8(utf8Bytes);
             utf8Bytes = utf8Bytes.Slice(writtenByteCount);
         }
+
+        for (int i = 0; i < outputPart.Length; i++)
+        {
+            int writtenByteCount = outputPart[i].EncodeToUtf8(utf8Bytes);
+            utf8Bytes = utf8Bytes.Slice(writtenByteCount);
+        }
+
+        return Program.TextToBools(allUtf8Bytes);
+    }
+
+    public bool[] GetUniqueInputPostfix(int index)
+    {
+        int smalletCommonOutputPrefix = _outputPrefixLengths.Min();
+        int outputRuneCount = _outputPrefixLengths[index] - smalletCommonOutputPrefix;
+        ReadOnlySpan<Rune> outputPart = _output.AsSpan(smalletCommonOutputPrefix, outputRuneCount);
+        int byteCount = CountUtf8Bytes(outputPart);
+        byte[] allUtf8Bytes = new byte[byteCount];
+        Span<byte> utf8Bytes = allUtf8Bytes;
 
         for (int i = 0; i < outputPart.Length; i++)
         {
