@@ -66,7 +66,11 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
         var inputs = ConvertToExampleVectors(examples.Select(x => x.inputs), maxInputLength);
         var outputs = ConvertToExampleVectors(examples.Select(x => x.outputs), maxOutputLength);
 
-        var vectorIndexes = new Dictionary<Vector256<int>, int>();
+        var vectorIndexes = new Dictionary<Vector256<int>, int>()
+        {
+            // First vector should always be zeroes since that index is used for padding
+            { Vector256<int>.Zero, 0 }
+        };
         var problemExamples = new List<ProblemExample>();
 
         int totalVectors = 0;
@@ -156,7 +160,11 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
         }
 
 
-        var vectorIndexes = new Dictionary<Vector256<int>, int>();
+        var vectorIndexes = new Dictionary<Vector256<int>, int>()
+        {
+            // First vector should always be zeroes since that index is used for padding
+            { Vector256<int>.Zero, 0 }
+        };
         var problemExamples = new List<ProblemExample>();
 
         int totalVectors = 0;
