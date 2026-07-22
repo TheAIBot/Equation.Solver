@@ -18,7 +18,7 @@ internal sealed class EvolveBestSolver : ISolver
     {
         _operatorCount = operatorCount;
         _candidateRandomizationRate = candidateRandomizationRate;
-        _fullScorer = new FullScorer();
+        _fullScorer = new FullScorer(operatorCount);
     }
 
     public SolverReport? GetReport()

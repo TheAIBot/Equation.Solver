@@ -39,7 +39,7 @@ internal sealed class RandomChunkEvolver : IChunkEvolver
         _random = random;
         _equations = new ScoredProblemEquation[_candidateCount];
         _equationValues = new EquationValues(parameterCount, _operatorCount);
-        _fullScorer = new FullScorer();
+        _fullScorer = new FullScorer(operatorCount);
         for (int i = 0; i < _equations.Length; i++)
         {
             _equations[i] = new ScoredProblemEquation(EquationScore.MaxScore.ToSlimScore(), new ProblemEquation(_operatorCount, outputCount));

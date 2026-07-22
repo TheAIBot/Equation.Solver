@@ -16,7 +16,7 @@ internal sealed class RandomSolver : ISolver
     public RandomSolver(int operatorCount)
     {
         _operatorCount = operatorCount;
-        _fullScorer = new FullScorer();
+        _fullScorer = new FullScorer(operatorCount);
     }
 
     public SolverReport? GetReport()

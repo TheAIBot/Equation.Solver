@@ -39,7 +39,7 @@ internal sealed class RandomEvolutionSolver : ISolver
         _chanceOnlyMoveOperator = chanceOnlyMoveOperator;
         _nandMover = new NandMover(parameterCount, operatorCount);
         _nandChanger = new NandChanger();
-        _fullScorer = new FullScorer();
+        _fullScorer = new FullScorer(operatorCount);
     }
 
     public SolverReport? GetReport()

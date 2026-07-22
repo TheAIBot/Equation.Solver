@@ -8,7 +8,7 @@ public sealed class FullScorerTest
     [Fact]
     public void ToFullScore_WithSingleNandGate_ExpectDepthOneAndNoIntermediateGates()
     {
-        var scorer = new FullScorer();
+        var scorer = new FullScorer(1);
         ProblemParts problemParts = EquationTools.CreateEquationWithExamples(
         [
             ([false], [true]),
@@ -27,7 +27,7 @@ public sealed class FullScorerTest
     [Fact]
     public void ToFullScore_WithAndGate_ExpectDepthTwoAndOneIntermediateGate()
     {
-        var scorer = new FullScorer();
+        var scorer = new FullScorer(2);
         ProblemParts problemParts = EquationTools.CreateEquationWithExamples(
         [
             ([false, false], [false]),
@@ -49,7 +49,7 @@ public sealed class FullScorerTest
     [Fact]
     public void ToFullScore_WithOrGate_ExpectDepthTwoAndTwoIntermediateGates()
     {
-        var scorer = new FullScorer();
+        var scorer = new FullScorer(3);
         ProblemParts problemParts = EquationTools.CreateEquationWithExamples(
         [
             ([false, false], [false]),
@@ -72,7 +72,7 @@ public sealed class FullScorerTest
     [Fact]
     public void ToFullScore_WithChainOfThreeGates_ExpectDepthThreeAndTwoIntermediateGates()
     {
-        var scorer = new FullScorer();
+        var scorer = new FullScorer(3);
         ProblemParts problemParts = EquationTools.CreateEquationWithExamples(
         [
             ([false], [true]),
@@ -93,7 +93,7 @@ public sealed class FullScorerTest
     [Fact]
     public void ToFullScore_WithTwoIndependentOutputs_ExpectDepthOneAndNoIntermediateGates()
     {
-        var scorer = new FullScorer();
+        var scorer = new FullScorer(2);
         ProblemParts problemParts = EquationTools.CreateEquationWithExamples(
         [
             ([false, false], [true, true]),
@@ -115,7 +115,7 @@ public sealed class FullScorerTest
     [Fact]
     public void ToFullScore_WithXorGate_ExpectDepthFourAndFiveIntermediateGates()
     {
-        var scorer = new FullScorer();
+        var scorer = new FullScorer(6);
         ProblemParts problemParts = EquationTools.CreateEquationWithExamples(
         [
             ([false, false], [false]),
@@ -141,7 +141,7 @@ public sealed class FullScorerTest
     [Fact]
     public void ToFullScore_WithHalfAdder_ExpectDepthFourAndFiveIntermediateGates()
     {
-        var scorer = new FullScorer();
+        var scorer = new FullScorer(7);
         ProblemParts problemParts = EquationTools.CreateEquationWithExamples(
         [
             ([false, false], [false, false]),

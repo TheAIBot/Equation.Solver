@@ -59,7 +59,7 @@ internal sealed class RandomEvolutionSolverWithEquationCombining : ISolver, IChu
         _multiNandMover = new MultiNandMover(new NandMover(parameterCount, operatorCount), moveCount);
         _nandChanger = new NandChangerOffsetLimit();
         _equationCombiner = new EquationCombiner(operatorCount, outputCount);
-        _fullScorer = new FullScorer();
+        _fullScorer = new FullScorer(operatorCount);
     }
 
     public SolverReport? GetReport()

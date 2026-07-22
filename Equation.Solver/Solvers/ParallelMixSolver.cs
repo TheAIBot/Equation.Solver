@@ -12,7 +12,7 @@ internal sealed class ParallelMixSolver : ISolver
     private readonly int _chunkSolverIterationsPerMix;
     private readonly float _chanceToMix;
     private readonly EquationValues _equationValues;
-    private readonly FullScorer _fullScorer = new FullScorer();
+    private readonly FullScorer _fullScorer;
     private EquationScore? _bestScore;
     private Dictionary<int, (int ReportIteration, SolverReport Report, SlimEquationScore SlimScore)>? _solverIdToReportData;
 
@@ -30,6 +30,7 @@ internal sealed class ParallelMixSolver : ISolver
         _chunkSolverIterationsPerMix = chunkSolverIterationsPerMix;
         _chanceToMix = chanceToMix;
         _equationValues = new EquationValues(wholeProblem.ParameterCount, operatorCount);
+        _fullScorer = new FullScorer(operatorCount);
     }
 
     public SolverReport? GetReport()
