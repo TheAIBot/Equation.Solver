@@ -2,15 +2,17 @@
 
 internal sealed class EquationCombiner
 {
-    private FastResetBoolArray _selectedOutputsOperatorsUsed;
+    private FastResetBoolArray _selectedOutputsOperatorsUsedA;
+    private FastResetBoolArray _selectedOutputsOperatorsUsedB;
     private FastResetBoolArray _outputSelection;
     private readonly int[] _oldToNewIndex;
 
     public EquationCombiner(int operatorCount, int outputCount)
     {
-        _selectedOutputsOperatorsUsed = new FastResetBoolArray(operatorCount);
+        _selectedOutputsOperatorsUsedA = new FastResetBoolArray(operatorCount);
+        _selectedOutputsOperatorsUsedB = new FastResetBoolArray(operatorCount);
         _outputSelection = new FastResetBoolArray(outputCount);
-        _oldToNewIndex = new int[_selectedOutputsOperatorsUsed.Length];
+        _oldToNewIndex = new int[_selectedOutputsOperatorsUsedA.Length];
     }
 
     public bool CombineEquations(Random random,
@@ -28,13 +30,9 @@ internal sealed class EquationCombiner
         ArgumentOutOfRangeException.ThrowIfNotEqual(parentA.OutputSize, parentB.OutputSize);
         ArgumentOutOfRangeException.ThrowIfNotEqual(parentA.OutputSize, child.OutputSize);
 
-        if (parentA.OperatorsUsedCount - parentA.OutputSize + parentB.OperatorsUsedCount - parentB.OutputSize > child.NandOperators.Length - child.OutputSize)
-        {
-            return false;
-        }
-
         int[] oldToNewIndex = _oldToNewIndex;
-        _selectedOutputsOperatorsUsed.Clear();
+        _selectedOutputsOperatorsUsedA.Clear();
+        _selectedOutputsOperatorsUsedB.Clear();
         _outputSelection.Clear();
         Array.Clear(oldToNewIndex);
 
@@ -44,15 +42,18 @@ internal sealed class EquationCombiner
             _outputSelection[i] = random.Next(0, 2) == 1;
         }
 
-        int nonOuputOperatorCount = CalculateOutputOperatorsUsed(inputParameterCount, parentA, _selectedOutputsOperatorsUsed, _outputSelection, true);
+        int nonOuputOperatorCount = CalculateOutputOperatorsUsed(inputParameterCount, parentA, _selectedOutputsOperatorsUsedA, _outputSelection, true);
+        nonOuputOperatorCount += CalculateOutputOperatorsUsed(inputParameterCount, parentB, _selectedOutputsOperatorsUsedB, _outputSelection, false);
+        if (nonOuputOperatorCount > child.NandOperators.Length - child.OutputSize)
+        {
+            return false;
+        }
 
         int newNandIndex = 0;
-        newNandIndex = CopyUsedOperatorsFromParentToChild(inputParameterCount, parentA, child, _selectedOutputsOperatorsUsed, _outputSelection, oldToNewIndex, newNandIndex);
+        newNandIndex = CopyUsedOperatorsFromParentToChild(inputParameterCount, parentA, child, _selectedOutputsOperatorsUsedA, _outputSelection, oldToNewIndex, newNandIndex);
 
         Array.Clear(oldToNewIndex);
-        _selectedOutputsOperatorsUsed.Clear();
-        nonOuputOperatorCount = CalculateOutputOperatorsUsed(inputParameterCount, parentB, _selectedOutputsOperatorsUsed, _outputSelection, false);
-        newNandIndex = CopyUsedOperatorsFromParentToChild(inputParameterCount, parentB, child, _selectedOutputsOperatorsUsed, _outputSelection, oldToNewIndex, newNandIndex);
+        newNandIndex = CopyUsedOperatorsFromParentToChild(inputParameterCount, parentB, child, _selectedOutputsOperatorsUsedB, _outputSelection, oldToNewIndex, newNandIndex);
 
         child.RecalculateOperatorsUsed(inputParameterCount);
         return true;
