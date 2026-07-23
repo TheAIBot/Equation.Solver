@@ -4,15 +4,15 @@ internal sealed class EquationCombiner
 {
     private FastResetBoolArray _selectedOutputsOperatorsUsedA;
     private FastResetBoolArray _selectedOutputsOperatorsUsedB;
-    private FastResetBoolArray _outputSelection;
     private readonly int[] _oldToNewIndex;
+    private readonly int _outputCount;
 
     public EquationCombiner(int operatorCount, int outputCount)
     {
         _selectedOutputsOperatorsUsedA = new FastResetBoolArray(operatorCount);
         _selectedOutputsOperatorsUsedB = new FastResetBoolArray(operatorCount);
-        _outputSelection = new FastResetBoolArray(outputCount);
         _oldToNewIndex = new int[_selectedOutputsOperatorsUsedA.Length];
+        _outputCount = outputCount;
     }
 
     public bool CombineEquations(Random random,
@@ -30,64 +30,64 @@ internal sealed class EquationCombiner
         ArgumentOutOfRangeException.ThrowIfNotEqual(parentA.OutputSize, parentB.OutputSize);
         ArgumentOutOfRangeException.ThrowIfNotEqual(parentA.OutputSize, child.OutputSize);
 
-        int[] oldToNewIndex = _oldToNewIndex;
         _selectedOutputsOperatorsUsedA.Clear();
         _selectedOutputsOperatorsUsedB.Clear();
-        _outputSelection.Clear();
-        Array.Clear(oldToNewIndex);
 
-
-        for (int i = 0; i < _outputSelection.Length; i++)
-        {
-            _outputSelection[i] = random.Next(0, 2) == 1;
-        }
-
-        int nonOuputOperatorCount = CalculateOutputOperatorsUsed(inputParameterCount, parentA, _selectedOutputsOperatorsUsedA, _outputSelection, true);
-        nonOuputOperatorCount += CalculateOutputOperatorsUsed(inputParameterCount, parentB, _selectedOutputsOperatorsUsedB, _outputSelection, false);
+        int nonOuputOperatorCount = CalculateOutputOperatorsUsed(random, inputParameterCount, parentA, _selectedOutputsOperatorsUsedA, parentB, _selectedOutputsOperatorsUsedB, _outputCount);
         if (nonOuputOperatorCount > child.NandOperators.Length - child.OutputSize)
         {
             return false;
         }
 
+        int[] oldToNewIndex = _oldToNewIndex;
+        Array.Clear(oldToNewIndex);
+
         int newNandIndex = 0;
-        newNandIndex = CopyUsedOperatorsFromParentToChild(inputParameterCount, parentA, child, _selectedOutputsOperatorsUsedA, _outputSelection, oldToNewIndex, newNandIndex);
+        newNandIndex = CopyUsedOperatorsFromParentToChild(inputParameterCount, parentA, child, _selectedOutputsOperatorsUsedA, _outputCount, oldToNewIndex, newNandIndex);
 
         Array.Clear(oldToNewIndex);
-        newNandIndex = CopyUsedOperatorsFromParentToChild(inputParameterCount, parentB, child, _selectedOutputsOperatorsUsedB, _outputSelection, oldToNewIndex, newNandIndex);
+        newNandIndex = CopyUsedOperatorsFromParentToChild(inputParameterCount, parentB, child, _selectedOutputsOperatorsUsedB, _outputCount, oldToNewIndex, newNandIndex);
 
         child.RecalculateOperatorsUsed(inputParameterCount);
         return true;
     }
 
-    private static int CalculateOutputOperatorsUsed(int inputParameterCount,
+    private static int CalculateOutputOperatorsUsed(Random random,
+                                                    int inputParameterCount,
                                                     ProblemEquation parentA,
-                                                    FastResetBoolArray selectedOutputsOperatorsUsed,
-                                                    FastResetBoolArray outputSelection,
-                                                    bool valueSignalsUse)
+                                                    FastResetBoolArray selectedOutputsOperatorsUsedA,
+                                                    ProblemEquation parentB,
+                                                    FastResetBoolArray selectedOutputsOperatorsUsedB,
+                                                    int outputCount)
     {
         for (int i = 0; i < parentA.OutputSize; i++)
         {
-            if (outputSelection[i] != valueSignalsUse)
+            if (random.Next(0, 2) == 1)
             {
-                continue;
+                selectedOutputsOperatorsUsedA[selectedOutputsOperatorsUsedA.Length - parentA.OutputSize + i] = true;
             }
-
-            selectedOutputsOperatorsUsed[selectedOutputsOperatorsUsed.Length - parentA.OutputSize + i] = true;
+            else
+            {
+                selectedOutputsOperatorsUsedB[selectedOutputsOperatorsUsedB.Length - parentB.OutputSize + i] = true;
+            }
         }
 
-        int totalOperatorsUsed = ProblemEquation.CalculateRemainingOperatorsUsed(inputParameterCount, parentA.NandOperators, selectedOutputsOperatorsUsed);
-        return totalOperatorsUsed - outputSelection.Length;
+        int totalOperatorsUsed = ProblemEquation.CalculateRemainingOperatorsUsed(inputParameterCount, parentA.NandOperators, selectedOutputsOperatorsUsedA);
+        totalOperatorsUsed -= outputCount;
+        totalOperatorsUsed += ProblemEquation.CalculateRemainingOperatorsUsed(inputParameterCount, parentB.NandOperators, selectedOutputsOperatorsUsedB);
+        totalOperatorsUsed -= outputCount;
+        return totalOperatorsUsed;
     }
 
     private static int CopyUsedOperatorsFromParentToChild(int inputParameterCount,
                                                           ProblemEquation parent,
                                                           ProblemEquation child,
                                                           FastResetBoolArray selectedOutputsOperatorsUsed,
-                                                          FastResetBoolArray outputSelection,
+                                                          int outputCount,
                                                           int[] oldToNewIndex,
                                                           int newNandIndex)
     {
-        for (int i = 0; i < selectedOutputsOperatorsUsed.Length - outputSelection.Length; i++)
+        for (int i = 0; i < selectedOutputsOperatorsUsed.Length - outputCount; i++)
         {
             if (!selectedOutputsOperatorsUsed[i])
             {
