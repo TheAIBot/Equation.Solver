@@ -1,5 +1,4 @@
-﻿using System.Numerics;
-using System.Runtime.Intrinsics;
+﻿using System.Runtime.Intrinsics;
 
 namespace Equation.Solver;
 
@@ -43,8 +42,7 @@ internal sealed class ProblemEquation
                     continue;
                 }
 
-                var result = nandOperators[i].Nand(allValues, inputIndexes, vectors, inputCount);
-                result.StoreAligned((int*)(results + i));
+                nandOperators[i].Nand(allValues, inputIndexes, vectors, inputCount, (int*)(results + i));
             }
         }
 
