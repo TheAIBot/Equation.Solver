@@ -22,11 +22,16 @@ internal sealed class ProblemEquation
 
     public unsafe ReadOnlySpan<Vector256<int>> Calculate(EquationValues equationValues, ProblemExample example, ProblemCollection problemCollection)
     {
-        int inputCount = example.Input.Indexes.Length * Vector256<int>.Count;
+        return CalculateBatch(equationValues, example, problemCollection, 1);
+    }
+
+    public unsafe ReadOnlySpan<Vector256<int>> CalculateBatch(EquationValues equationValues, ProblemExample example, ProblemCollection problemCollection, int batchSize)
+    {
+        int inputCount = equationValues.InputParameterCount * Vector256<int>.Count;
 
         Vector256<int>* results = equationValues.OperatorResults;
         int* allValues = (int*)equationValues.OperatorResults;
-        allValues -= equationValues.InputParameterCount * Vector256<int>.Count;
+        allValues -= equationValues.InputParameterCount * Vector256<int>.Count * batchSize;
 
         NandOperator[] nandOperators = _nandOperators;
         FastResetBoolArray operatorsUsed = _operatorsUsed;
@@ -42,11 +47,11 @@ internal sealed class ProblemEquation
                     continue;
                 }
 
-                nandOperators[i].Nand(allValues, inputIndexes, vectors, inputCount, (int*)(results + i));
+                nandOperators[i].BatchNand(allValues, inputIndexes, vectors, inputCount, batchSize, (int*)(results + i * batchSize));
             }
         }
 
-        return new Span<Vector256<int>>(results + equationValues._size - _outputSize, _outputSize);
+        return new Span<Vector256<int>>(results + (equationValues._size - _outputSize) * batchSize, _outputSize * batchSize);
     }
 
     public void RecalculateOperatorsUsed(int inputParameterCount)

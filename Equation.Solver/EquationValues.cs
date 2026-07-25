@@ -10,14 +10,19 @@ internal unsafe sealed class EquationValues : IDisposable
     private readonly int _parameterCount;
 
     public int InputParameterCount => _parameterCount;
+    public int MaxBatchSize { get; }
 
-    public EquationValues(int parameterCount, int operatorCount)
+    public EquationValues(int parameterCount, int operatorCount) : this(parameterCount, operatorCount, 32)
+    { }
+
+    public EquationValues(int parameterCount, int operatorCount, int maxBatchSize)
     {
         _size = operatorCount;
         _parameterCount = parameterCount;
         // For vectorized code, aligned load/stores can be important in order to achieve optimal performance.
         // That's why we align this array by the vectors size so only aligned loads/stores are done.
-        OperatorResults = (Vector256<int>*)NativeMemory.AlignedAlloc((nuint)(sizeof(Vector256<int>) * _size), (nuint)sizeof(Vector256<int>));
+        OperatorResults = (Vector256<int>*)NativeMemory.AlignedAlloc((nuint)(sizeof(Vector256<int>) * _size * maxBatchSize), (nuint)sizeof(Vector256<int>));
+        MaxBatchSize = maxBatchSize;
     }
 
     public void Dispose()
