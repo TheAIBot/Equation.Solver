@@ -27,7 +27,7 @@ internal readonly struct NandOperator
         if (_leftValueIndex < inputCount)
         {
             int vectorIndex = inputIndexes[_leftValueIndex / (uint)Vector256<int>.Count];
-            leftValue = vectors + vectorIndex * Vector256<int>.Count;
+            leftValue = vectors + vectorIndex;
         }
         else
         {
@@ -38,7 +38,7 @@ internal readonly struct NandOperator
         if (_rightValueIndex < inputCount)
         {
             int vectorIndex = inputIndexes[_rightValueIndex / (uint)Vector256<int>.Count];
-            rightValue = vectors + vectorIndex * Vector256<int>.Count;
+            rightValue = vectors + vectorIndex;
         }
         else
         {

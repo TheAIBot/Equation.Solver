@@ -94,6 +94,10 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
                 }
                 inputIndexes[i] = index;
             }
+            for (int i = 0; i < inputIndexes.Length; i++)
+            {
+                inputIndexes[i] *= Vector256<int>.Count;
+            }
 
             var outputIndexes = new int[exampleVectors.output.outputs.Length];
             for (int i = 0; i < exampleVectors.output.outputs.Length; i++)
@@ -192,6 +196,11 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
                 int[] inputIndexes = new int[maxInputLength];
                 sharedInputIndexes.CopyTo(inputIndexes, 0);
                 uniqueInputIndexes.CopyTo(inputIndexes, sharedInputIndexes.Length);
+                for (int i = 0; i < inputIndexes.Length; i++)
+                {
+                    inputIndexes[i] *= Vector256<int>.Count;
+                }
+
 
                 int[] outputIndexes = ConvertExamplesToDeduplicatedVectors(maxOutputLength, vectorIndexes, ref totalVectors, ref deduplicatedVectors, exampleChunk.Select(x => outputRuneToOutputBools[x.GetOutputRune(examplePrefixIndex)]).ToArray());
 
