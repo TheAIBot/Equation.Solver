@@ -31,7 +31,7 @@ internal sealed class Program
         examples = null!;
 
         (ProblemCollection solvingProblemCollection, ProblemCollection validationProblemCollection) = SplitSolvingAndValidationExamples(fullProblemCollection, 0.02f);
-        Console.WriteLine($"Total output bits: {solvingProblemCollection.Examples.Sum(x => x.Output.Indexes.LongLength * PopCount(x.Output.MaskBitsUsed)):N0}");
+        Console.WriteLine($"Total output bits: {solvingProblemCollection.Examples.Sum(x => (long)x.OutputCount * x.BitsUsedMasks.Sum(PopCount)):N0}");
 
         IExampleCluster exampleCluster = new RandomExampleCluster([
             new RandomExampleClustering(1.00f, 5),
@@ -159,7 +159,7 @@ internal sealed class Program
     {
         int validationCount = (int)(problemCollection.Examples.Length * examplesForValidationPercent);
         var splitRandom = new Random(42);
-        var shuffled = problemCollection.Examples.OrderBy(_ => splitRandom.Next()).ToArray();
+        var shuffled = problemCollection.GetIndividualExamples().OrderBy(_ => splitRandom.Next()).ToArray();
         var validationExamples = shuffled[..validationCount];
         var solvingExamples = shuffled[validationCount..];
         return (problemCollection.CreateSubset(solvingExamples), problemCollection.CreateSubset(validationExamples));

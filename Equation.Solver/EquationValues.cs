@@ -5,6 +5,7 @@ namespace Equation.Solver;
 
 internal unsafe sealed class EquationValues : IDisposable
 {
+    public const int DefaultMaxBatchSize = 32;
     public readonly Vector256<int>* OperatorResults;
     public readonly int _size;
     private readonly int _parameterCount;
@@ -12,7 +13,7 @@ internal unsafe sealed class EquationValues : IDisposable
     public int InputParameterCount => _parameterCount;
     public int MaxBatchSize { get; }
 
-    public EquationValues(int parameterCount, int operatorCount) : this(parameterCount, operatorCount, 32)
+    public EquationValues(int parameterCount, int operatorCount) : this(parameterCount, operatorCount, DefaultMaxBatchSize)
     { }
 
     public EquationValues(int parameterCount, int operatorCount, int maxBatchSize)

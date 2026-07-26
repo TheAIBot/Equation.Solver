@@ -20,14 +20,10 @@ internal sealed class ProblemEquation
         _outputSize = outputSize;
     }
 
-    public unsafe ReadOnlySpan<Vector256<int>> Calculate(EquationValues equationValues, ProblemExample example, ProblemCollection problemCollection)
-    {
-        return CalculateBatch(equationValues, example, problemCollection, 1);
-    }
-
-    public unsafe ReadOnlySpan<Vector256<int>> CalculateBatch(EquationValues equationValues, ProblemExample example, ProblemCollection problemCollection, int batchSize)
+    public unsafe ReadOnlySpan<Vector256<int>> CalculateBatch(EquationValues equationValues, ProblemExampleBatch example, ProblemCollection problemCollection)
     {
         int inputCount = equationValues.InputParameterCount * Vector256<int>.Count;
+        int batchSize = example.BatchSize;
 
         Vector256<int>* results = equationValues.OperatorResults;
         int* allValues = (int*)equationValues.OperatorResults;
@@ -36,7 +32,7 @@ internal sealed class ProblemEquation
         NandOperator[] nandOperators = _nandOperators;
         FastResetBoolArray operatorsUsed = _operatorsUsed;
 
-        fixed (int* inputIndexes = example.Input.Indexes)
+        fixed (int* inputIndexes = example.InputIndexes)
         {
             int* vectors = (int*)problemCollection.Vectors;
 

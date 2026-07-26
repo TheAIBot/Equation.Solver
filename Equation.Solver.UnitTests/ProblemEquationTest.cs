@@ -17,10 +17,10 @@ public sealed class ProblemEquationTest
             new NandOperator(0, 0)
         ]);
 
-        ReadOnlySpan<Vector256<int>> actualResult = problemParts.Equation.Calculate(problemParts.EquationValues, problemParts.Examples[0], problemParts.ProblemCollection);
+        ReadOnlySpan<Vector256<int>> actualResult = problemParts.Equation.CalculateBatch(problemParts.EquationValues, problemParts.Examples[0], problemParts.ProblemCollection);
 
-        Assert.Equal(actualResult.Length, problemParts.Examples[0].Output.Count);
-        Assert.Equal(problemParts.GetVector(problemParts.Examples[0].Output.Indexes[0]).GetElement(0) & 0b11, actualResult[0].GetElement(0) & 0b11);
+        Assert.Equal(actualResult.Length, problemParts.Examples[0].OutputCount);
+        Assert.Equal(problemParts.GetVector(problemParts.Examples[0].OutputIndexes[0]).GetElement(0) & 0b11, actualResult[0].GetElement(0) & 0b11);
     }
 
     [Fact]
@@ -38,10 +38,10 @@ public sealed class ProblemEquationTest
             new NandOperator(2, 2)
         ]);
 
-        ReadOnlySpan<Vector256<int>> actualResult = problemParts.Equation.Calculate(problemParts.EquationValues, problemParts.Examples[0], problemParts.ProblemCollection);
+        ReadOnlySpan<Vector256<int>> actualResult = problemParts.Equation.CalculateBatch(problemParts.EquationValues, problemParts.Examples[0], problemParts.ProblemCollection);
 
-        Assert.Equal(actualResult.Length, problemParts.Examples[0].Output.Count);
-        Assert.Equal(problemParts.GetVector(problemParts.Examples[0].Output.Indexes[0]).GetElement(0) & 0b1111, actualResult[0].GetElement(0) & 0b1111);
+        Assert.Equal(actualResult.Length, problemParts.Examples[0].OutputCount);
+        Assert.Equal(problemParts.GetVector(problemParts.Examples[0].OutputIndexes[0]).GetElement(0) & 0b1111, actualResult[0].GetElement(0) & 0b1111);
     }
 
     [Fact]
@@ -60,10 +60,10 @@ public sealed class ProblemEquationTest
             new NandOperator(2, 3)
         ]);
 
-        ReadOnlySpan<Vector256<int>> actualResult = problemParts.Equation.Calculate(problemParts.EquationValues, problemParts.Examples[0], problemParts.ProblemCollection);
+        ReadOnlySpan<Vector256<int>> actualResult = problemParts.Equation.CalculateBatch(problemParts.EquationValues, problemParts.Examples[0], problemParts.ProblemCollection);
 
-        Assert.Equal(actualResult.Length, problemParts.Examples[0].Output.Count);
-        Assert.Equal(problemParts.GetVector(problemParts.Examples[0].Output.Indexes[0]).GetElement(0) & 0b1111, actualResult[0].GetElement(0) & 0b1111);
+        Assert.Equal(actualResult.Length, problemParts.Examples[0].OutputCount);
+        Assert.Equal(problemParts.GetVector(problemParts.Examples[0].OutputIndexes[0]).GetElement(0) & 0b1111, actualResult[0].GetElement(0) & 0b1111);
     }
 
     [Fact]
@@ -85,10 +85,10 @@ public sealed class ProblemEquationTest
             new NandOperator(6, 6),
         ]);
 
-        ReadOnlySpan<Vector256<int>> actualResult = problemParts.Equation.Calculate(problemParts.EquationValues, problemParts.Examples[0], problemParts.ProblemCollection);
+        ReadOnlySpan<Vector256<int>> actualResult = problemParts.Equation.CalculateBatch(problemParts.EquationValues, problemParts.Examples[0], problemParts.ProblemCollection);
 
-        Assert.Equal(actualResult.Length, problemParts.Examples[0].Output.Count);
-        Assert.Equal(problemParts.GetVector(problemParts.Examples[0].Output.Indexes[0]).GetElement(0) & 0b1111, actualResult[0].GetElement(0) & 0b1111);
+        Assert.Equal(actualResult.Length, problemParts.Examples[0].OutputCount);
+        Assert.Equal(problemParts.GetVector(problemParts.Examples[0].OutputIndexes[0]).GetElement(0) & 0b1111, actualResult[0].GetElement(0) & 0b1111);
     }
 
     [Fact]
@@ -112,10 +112,10 @@ public sealed class ProblemEquationTest
 
         ]);
 
-        ReadOnlySpan<Vector256<int>> actualResult = problemParts.Equation.Calculate(problemParts.EquationValues, problemParts.Examples[0], problemParts.ProblemCollection);
+        ReadOnlySpan<Vector256<int>> actualResult = problemParts.Equation.CalculateBatch(problemParts.EquationValues, problemParts.Examples[0], problemParts.ProblemCollection);
 
-        Assert.Equal(actualResult.Length, problemParts.Examples[0].Output.Count);
-        Assert.Equal(problemParts.GetVector(problemParts.Examples[0].Output.Indexes[0]).GetElement(0) & 0b1111, actualResult[0].GetElement(0) & 0b1111);
-        Assert.Equal(problemParts.GetVector(problemParts.Examples[0].Output.Indexes[1]).GetElement(0) & 0b1111, actualResult[1].GetElement(0) & 0b1111);
+        Assert.Equal(actualResult.Length, problemParts.Examples[0].OutputCount);
+        Assert.Equal(problemParts.GetVector(problemParts.Examples[0].OutputIndexes[0]).GetElement(0) & 0b1111, actualResult[0].GetElement(0) & 0b1111);
+        Assert.Equal(problemParts.GetVector(problemParts.Examples[0].OutputIndexes[1]).GetElement(0) & 0b1111, actualResult[1].GetElement(0) & 0b1111);
     }
 }

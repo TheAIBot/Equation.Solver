@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Text;
 
@@ -51,6 +52,103 @@ internal sealed class RandomExampleCluster : IExampleCluster
 }
 
 internal readonly record struct RandomExampleClustering(float PercentOfAllProblems, int ClusterssWithThisChance);
+
+internal readonly record struct ProblemExampleBatch(int[] InputIndexes, int[] OutputIndexes, Vector256<int>[] BitsUsedMasks)
+{
+    public int InputCount => InputIndexes.Length / BatchSize;
+    public int OutputCount => OutputIndexes.Length / BatchSize;
+    public int BatchSize => BitsUsedMasks.Length;
+
+    public unsafe void CalculateDifference(ReadOnlySpan<Vector256<int>> compareTo, Span<int> bitErrors, ProblemCollection problemCollection)
+    {
+        if (compareTo.Length != OutputIndexes.Length)
+        {
+            throw new ArgumentException($"Must be the same length as {nameof(OutputIndexes)}", nameof(compareTo));
+        }
+        if (bitErrors.Length != OutputIndexes.Length)
+        {
+            throw new ArgumentException($"Must be the same length as {nameof(OutputIndexes)}", nameof(bitErrors));
+        }
+
+        int* vectors = (int*)problemCollection.Vectors;
+        int[] outputIndexes = OutputIndexes;
+        Vector256<int>[] bitsUsedMasks = BitsUsedMasks;
+        int batchSize = bitsUsedMasks.Length;
+        int outputCount = OutputCount;
+
+        for (int batchIndex = 0; batchIndex < batchSize; batchIndex++)
+        {
+            Vector256<int> bitsUsedMask = bitsUsedMasks[batchIndex];
+            for (int outputIndex = 0; outputIndex < outputCount; outputIndex++)
+            {
+                Vector256<int> expected = Vector256.LoadAligned(vectors + outputIndexes[outputIndex * batchSize + batchIndex] * Vector256<int>.Count);
+                Vector256<int> actual = compareTo[outputIndex * batchSize + batchIndex] & bitsUsedMask;
+                Vector256<ulong> diff = (expected ^ actual).AsUInt64();
+                bitErrors[outputIndex * batchSize + batchIndex] += BitOperations.PopCount(diff.GetElement(0)) +
+                                          BitOperations.PopCount(diff.GetElement(1)) +
+                                          BitOperations.PopCount(diff.GetElement(2)) +
+                                          BitOperations.PopCount(diff.GetElement(3));
+            }
+        }
+    }
+
+    public unsafe bool[] GetExampleCorrectness(ReadOnlySpan<Vector256<int>> compareTo, ProblemCollection problemCollection)
+    {
+        if (compareTo.Length != OutputIndexes.Length)
+        {
+            throw new ArgumentException($"Must be the same length as {nameof(OutputIndexes)}", nameof(compareTo));
+        }
+
+        int* vectors = (int*)problemCollection.Vectors;
+        int[] outputIndexes = OutputIndexes;
+        Vector256<int>[] bitsUsedMasks = BitsUsedMasks;
+        int batchSize = bitsUsedMasks.Length;
+
+        Span<Vector256<int>> combinedDiffs = stackalloc Vector256<int>[batchSize];
+        for (int batchIndex = 0; batchIndex < batchSize; batchIndex++)
+        {
+            Vector256<int> bitsUsedMask = bitsUsedMasks[batchIndex];
+            Vector256<int> combinedDiff = Vector256<int>.Zero;
+            for (int outputIndex = 0; outputIndex < OutputCount; outputIndex++)
+            {
+                Vector256<int> expected = Vector256.LoadAligned(vectors + outputIndexes[outputIndex * batchSize + batchIndex] * Vector256<int>.Count);
+                Vector256<int> actual = compareTo[outputIndex * batchSize + batchIndex] & bitsUsedMask;
+                combinedDiff |= expected ^ actual;
+            }
+
+            combinedDiffs[batchIndex] = combinedDiff;
+        }
+
+        int exampleCount = 0;
+        for (int batchIndex = 0; batchIndex < batchSize; batchIndex++)
+        {
+            Vector256<int> bitsUsedMask = bitsUsedMasks[batchIndex];
+            for (int i = 0; i < Vector256<int>.Count; i++)
+            {
+                exampleCount += BitOperations.PopCount((uint)bitsUsedMask.GetElement(i));
+            }
+        }
+
+        var results = new bool[exampleCount];
+        const int bitsPerInt = 32;
+        for (int batchIndex = 0; batchIndex < batchSize; batchIndex++)
+        {
+            int vectorExampleCount = Math.Max(Vector256<int>.Count * bitsPerInt, exampleCount - batchIndex * Vector256<int>.Count * bitsPerInt);
+            for (int elementIndex = 0; elementIndex < vectorExampleCount; elementIndex += bitsPerInt)
+            {
+                uint diff = (uint)combinedDiffs[batchIndex].GetElement(elementIndex / bitsPerInt);
+
+                int exampleCountInElement = Math.Min(vectorExampleCount - elementIndex, bitsPerInt);
+                for (int i = 0; i < exampleCountInElement; i++)
+                {
+                    results[elementIndex + i] = ((diff >> i) & 1) == 0;
+                }
+            }
+        }
+
+        return results;
+    }
+}
 
 internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput Output)
 {
@@ -130,7 +228,7 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
             uniqueVectors[pair.Value] = pair.Key;
         }
 
-        return ProblemCollection.Create(problemExamples.ToArray(), uniqueVectors);
+        return ProblemCollection.Create(problemExamples.ToArray(), uniqueVectors, EquationValues.DefaultMaxBatchSize);
     }
 
     public static async Task<ProblemCollection> ConvertToExamples(IAsyncEnumerable<ExampleGenerator> examples, int examplePrefixCount)
@@ -219,7 +317,7 @@ internal readonly record struct ProblemExample(ProblemInput Input, ProblemOutput
             uniqueVectors[pair.Value] = pair.Key;
         }
 
-        return ProblemCollection.Create(problemExamples.ToArray(), uniqueVectors);
+        return ProblemCollection.Create(problemExamples.ToArray(), uniqueVectors, EquationValues.DefaultMaxBatchSize);
     }
 
     private static int[] ConvertExamplesToDeduplicatedVectors(int maxInputLength, Dictionary<Vector256<int>, int> vectorIndexes, ref int totalVectors, ref int deduplicatedVectors, bool[][] problems)

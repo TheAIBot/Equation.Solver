@@ -40,8 +40,8 @@ internal readonly struct NandOperator
             int* rightValue = vectors;
             for (int i = 0; i < batchSize; i++)
             {
-                Vector256<int> opLeft = Vector256.LoadAligned(leftValue + inputIndexes[leftValueIndex + i]);
-                Vector256<int> opRight = Vector256.LoadAligned(rightValue + inputIndexes[rightValueIndex + i]);
+                Vector256<int> opLeft = Vector256.LoadAligned(leftValue + inputIndexes[leftValueIndex * batchSize + i]);
+                Vector256<int> opRight = Vector256.LoadAligned(rightValue + inputIndexes[rightValueIndex * batchSize + i]);
                 Vector256.StoreAligned(~(opLeft & opRight), storeLocation + i * Vector256<int>.Count);
             }
         }
@@ -49,11 +49,11 @@ internal readonly struct NandOperator
         {
             leftValueIndex = leftValueIndex / (uint)Vector256<int>.Count;
             int* leftValue = vectors;
-            int* rightValue = allValues + rightValueIndex;
+            int* rightValue = allValues + rightValueIndex * batchSize;
 
             for (int i = 0; i < batchSize; i++)
             {
-                Vector256<int> opLeft = Vector256.LoadAligned(leftValue + inputIndexes[leftValueIndex + i]);
+                Vector256<int> opLeft = Vector256.LoadAligned(leftValue + inputIndexes[leftValueIndex * batchSize + i]);
                 Vector256<int> opRight = Vector256.LoadAligned(rightValue + i * Vector256<int>.Count);
                 Vector256.StoreAligned(~(opLeft & opRight), storeLocation + i * Vector256<int>.Count);
             }
@@ -61,20 +61,20 @@ internal readonly struct NandOperator
         else if (rightValueIndex < inputCount)
         {
             rightValueIndex = rightValueIndex / (uint)Vector256<int>.Count;
-            int* leftValue = allValues + leftValueIndex;
+            int* leftValue = allValues + leftValueIndex * batchSize;
             int* rightValue = vectors;
 
             for (int i = 0; i < batchSize; i++)
             {
                 Vector256<int> opLeft = Vector256.LoadAligned(leftValue + i * Vector256<int>.Count);
-                Vector256<int> opRight = Vector256.LoadAligned(rightValue + inputIndexes[rightValueIndex + i]);
+                Vector256<int> opRight = Vector256.LoadAligned(rightValue + inputIndexes[rightValueIndex * batchSize + i]);
                 Vector256.StoreAligned(~(opLeft & opRight), storeLocation + i * Vector256<int>.Count);
             }
         }
         else
         {
-            int* leftValue = allValues + leftValueIndex;
-            int* rightValue = allValues + rightValueIndex;
+            int* leftValue = allValues + leftValueIndex * batchSize;
+            int* rightValue = allValues + rightValueIndex * batchSize;
 
             for (int i = 0; i < batchSize; i++)
             {
